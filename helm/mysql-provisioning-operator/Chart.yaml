@@ -2,8 +2,8 @@ apiVersion: v2
 name: mysql-provisioning-operator
 description: Provision MySQL databases, users, and Secrets on existing MySQL clusters.
 type: application
-version: 0.0.0
-appVersion: "0.0.0"
+version: 0.0.1
+appVersion: "v0.0.1"
 kubeVersion: ">=1.30.0-0"
 keywords:
   - mysql
