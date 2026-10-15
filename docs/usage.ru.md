@@ -275,7 +275,7 @@ spec:
 
 Шаблоны — это Go `text/template` и урезанный Sprig. Функций `env`, `expandenv` и `getHostByName` нет. В шаблон попадает только этот пользователь: `Username`, `Password`, `PreviousPassword`, `Hosts`, `Plugin`, `Cluster`, `Master`, `Members`, `Databases`. Чужие Secret из шаблона не читаются.
 
-`PASSWORD` и `PASSWORD_PREVIOUS` зарезервированы. Оператор записывает их после рендера, поэтому шаблон не может подменить пароль. `entries` повторяет ключ и значение для каждого member кластера. `forEach` поддерживает только `members`. Имя ключа должно совпадать с `[A-Za-z0-9_.-]+`.
+`PASSWORD` и `PASSWORD_PREVIOUS` зарезервированы. Оператор записывает их после рендера, поэтому шаблон не может подменить пароль. `entries` повторяет ключ и значение для каждого member кластера. `forEach` поддерживает только `members`. `.Item.Index` — порядковый номер member в `spec.members`, начиная с 1. Имя ключа должно совпадать с `[A-Za-z0-9_.-]+`.
 
 Secret создаётся в том же namespace, что и `MySQLUser`, с owner reference. Оператор не watch'ит Secret. Ручная правка `PASSWORD` и момент, когда старый пароль пора снять, подхватываются следующим reconcile: что наступит раньше — минута, срок retention или `rotateEvery`. Изменение spec `MySQLUser` приходит сразу.
 

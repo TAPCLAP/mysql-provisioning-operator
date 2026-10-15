@@ -59,6 +59,7 @@ type GrantSpec struct {
 // SecretEntry expands one template for each cluster member.
 type SecretEntry struct {
 	// forEach is the collection to iterate. Only "members" is supported.
+	// Inside the template, .Item.Index is the 1-based position in spec.members.
 	// +kubebuilder:validation:Enum=members
 	ForEach string `json:"forEach"`
 

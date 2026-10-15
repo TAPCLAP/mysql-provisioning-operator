@@ -146,8 +146,8 @@ func renderSecret(user *mysqlv1alpha1.MySQLUser, target resolved, plan password.
 
 func memberEndpoints(target resolved) []secrettpl.Endpoint {
 	out := make([]secrettpl.Endpoint, 0, len(target.Cluster.Spec.Members))
-	for _, member := range target.Cluster.Spec.Members {
-		out = append(out, secrettpl.Endpoint{Name: member.Name, Host: member.Host, Port: member.AddressPort()})
+	for i, member := range target.Cluster.Spec.Members {
+		out = append(out, secrettpl.Endpoint{Name: member.Name, Host: member.Host, Port: member.AddressPort(), Index: i + 1})
 	}
 	return out
 }
@@ -157,7 +157,16 @@ func masterEndpoint(target resolved) secrettpl.Endpoint {
 		return secrettpl.Endpoint{}
 	}
 	master := target.Selection.Master
-	return secrettpl.Endpoint{Name: master.Name, Host: master.Host, Port: master.AddressPort()}
+	index := 0
+	if target.Cluster != nil {
+		for i, member := range target.Cluster.Spec.Members {
+			if member.Name == master.Name {
+				index = i + 1
+				break
+			}
+		}
+	}
+	return secrettpl.Endpoint{Name: master.Name, Host: master.Host, Port: master.AddressPort(), Index: index}
 }
 
 func grantDatabases(user *mysqlv1alpha1.MySQLUser) []string {

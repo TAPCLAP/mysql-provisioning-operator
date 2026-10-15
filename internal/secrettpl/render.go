@@ -21,6 +21,8 @@ type Endpoint struct {
 	Name string
 	Host string
 	Port int32
+	// Index is the 1-based position in spec.members.
+	Index int
 }
 
 // Data is the only object a tenant template can read.

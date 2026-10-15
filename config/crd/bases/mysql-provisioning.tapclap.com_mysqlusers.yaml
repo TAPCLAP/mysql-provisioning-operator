@@ -153,8 +153,9 @@ spec:
                         member.
                       properties:
                         forEach:
-                          description: forEach is the collection to iterate. Only
-                            "members" is supported.
+                          description: |-
+                            forEach is the collection to iterate. Only "members" is supported.
+                            Inside the template, .Item.Index is the 1-based position in spec.members.
                           enum:
                           - members
                           type: string
