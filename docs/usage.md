@@ -19,7 +19,13 @@ A tenant refers to a cluster by name only and never sees the admin Secret.
 
 cert-manager must be installed before the chart. The webhook `failurePolicy` is `Fail`, so a missing certificate blocks creates and updates of these resources.
 
+`mysql-provisioning-operator` includes the CRDs, the controller, and the validating webhook. Installing that chart is enough. `mysql-provisioning-operator-crds` contains the same CRDs and nothing else; install it first only when CRDs are managed separately. A later upgrade of the CRD chart does not change CRDs that Helm already applied from its `crds/` directory.
+
 ```bash
+helm install mysql-provisioning-operator-crds \
+  oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
+  --version 0.0.1
+
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
   --version 0.0.1 \
@@ -27,7 +33,7 @@ helm install mysql-provisioning-operator \
   --create-namespace
 ```
 
-The chart installs the CRDs, the controller, and the validating webhook. `spec.tls` on `MySQLCluster` is a separate setting: it is how the operator itself dials MySQL.
+`spec.tls` on `MySQLCluster` is a separate setting: it is how the operator itself dials MySQL.
 
 ## Register a cluster
 

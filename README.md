@@ -14,7 +14,13 @@ Tenants create `MySQLDatabase` and `MySQLUser` in their own namespaces. Admin cr
 
 cert-manager must already be installed. The validating webhook rejects invalid resources (`failurePolicy: Fail`).
 
+`mysql-provisioning-operator` includes the CRDs, the controller, and the validating webhook. Installing that chart is enough. `mysql-provisioning-operator-crds` is the same CRDs without the operator; install it first only when CRDs are managed on their own. Helm does not upgrade CRDs from that chart's `crds/` directory on a later upgrade.
+
 ```bash
+helm install mysql-provisioning-operator-crds \
+  oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
+  --version 0.0.1
+
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
   --version 0.0.1 \
@@ -22,7 +28,7 @@ helm install mysql-provisioning-operator \
   --create-namespace
 ```
 
-Create `MySQLCluster` and `MySQLTenant` in `mysql-provisioning-system`. A published release note contains the same command for the registry that built that version.
+Create `MySQLCluster` and `MySQLTenant` in `mysql-provisioning-system`. A published release note contains the same commands for the registry that built that version.
 
 ## Development
 

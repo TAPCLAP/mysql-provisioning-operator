@@ -1,3 +1,4 @@
+This chart includes the CRDs.
 mysql-provisioning-operator is installed in namespace {{ .Release.Namespace }}.
 Put MySQLCluster and MySQLTenant in this namespace. Tenants create MySQLDatabase and MySQLUser in their own namespaces.
 

@@ -1,0 +1,4 @@
+CRDs for mysql-provisioning.tapclap.com/v1alpha1 are installed.
+
+Helm applies files in crds/ on install and does not upgrade or delete them with this release.
+The operator chart, mysql-provisioning-operator, includes these same CRDs. Installing that chart alone is enough. It skips CRDs that already exist.

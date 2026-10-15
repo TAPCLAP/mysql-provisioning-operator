@@ -1,0 +1,15 @@
+apiVersion: v2
+name: mysql-provisioning-operator-crds
+description: CRDs for mysql-provisioning-operator. Install this chart when CRDs are managed separately from the operator.
+type: application
+version: 0.0.1
+appVersion: "v0.0.1"
+kubeVersion: ">=1.30.0-0"
+keywords:
+  - mysql
+  - operator
+  - crds
+home: https://github.com/tapclap/mysql-provisioning-operator
+sources:
+  - https://github.com/tapclap/mysql-provisioning-operator
+maintainers: []

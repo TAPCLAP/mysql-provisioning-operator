@@ -19,7 +19,13 @@
 
 cert-manager должен стоять до чарта. У webhook `failurePolicy: Fail`, поэтому без сертификата создание и изменение этих объектов блокируется.
 
+`mysql-provisioning-operator` содержит CRD, контроллер и validating webhook. Этого чарта достаточно. `mysql-provisioning-operator-crds` содержит те же CRD и больше ничего; его ставят первым, только если CRD ведут отдельно. Последующий upgrade чарта CRD не меняет CRD, которые Helm уже применил из его каталога `crds/`.
+
 ```bash
+helm install mysql-provisioning-operator-crds \
+  oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
+  --version 0.0.1
+
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
   --version 0.0.1 \
@@ -27,7 +33,7 @@ helm install mysql-provisioning-operator \
   --create-namespace
 ```
 
-Чарт ставит CRD, контроллер и validating webhook. `spec.tls` у `MySQLCluster` — отдельная настройка: так оператор сам подключается к MySQL.
+`spec.tls` у `MySQLCluster` — отдельная настройка: так оператор сам подключается к MySQL.
 
 ## Зарегистрировать кластер
 
