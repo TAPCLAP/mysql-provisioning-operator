@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -128,9 +129,7 @@ func GrantStatements(user, host string, desired []DesiredGrant, actual map[grant
 		}
 	}
 	union := map[grantKey]map[string]struct{}{}
-	for key, privs := range want {
-		union[key] = privs
-	}
+	maps.Copy(union, want)
 	for key := range actual {
 		if _, ok := union[key]; !ok {
 			union[key] = nil
