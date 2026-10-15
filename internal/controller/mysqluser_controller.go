@@ -244,7 +244,7 @@ func (r *MySQLUserReconciler) dualPassword(ctx context.Context, target resolved)
 	supports := true
 	known := false
 	for _, member := range target.Members {
-		db, err := r.access().opener().Open(ctx, member, target.User, target.Password)
+		db, err := r.access().opener().Open(ctx, member, target.Auth)
 		if err != nil {
 			continue
 		}

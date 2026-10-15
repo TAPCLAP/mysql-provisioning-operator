@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"net"
@@ -29,19 +31,29 @@ type DB interface {
 	Close() error
 }
 
+// Session is the admin login and TLS material for one cluster.
+type Session struct {
+	User       string
+	Password   string
+	TLS        *mysqlv1alpha1.ClusterTLS
+	CA         []byte
+	ClientCert []byte
+	ClientKey  []byte
+}
+
 // Opener dials a cluster member with the admin account.
 type Opener interface {
-	Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, user, password string) (DB, error)
+	Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, session Session) (DB, error)
 }
 
 // SQLOpener opens real MySQL connections.
 type SQLOpener struct{}
 
 // Open dials member and pings it.
-func (SQLOpener) Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, user, password string) (DB, error) {
+func (SQLOpener) Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, session Session) (DB, error) {
 	cfg := mysqldriver.NewConfig()
-	cfg.User = user
-	cfg.Passwd = password
+	cfg.User = session.User
+	cfg.Passwd = session.Password
 	cfg.Net = "tcp"
 	cfg.Addr = net.JoinHostPort(member.Host, strconv.Itoa(int(member.AddressPort())))
 	cfg.Timeout = 5 * time.Second
@@ -50,10 +62,16 @@ func (SQLOpener) Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, use
 	cfg.ParseTime = true
 	cfg.AllowNativePasswords = true
 	cfg.MultiStatements = false
-	db, err := sql.Open("mysql", cfg.FormatDSN())
+	tlsConfig, err := session.tlsConfig(member)
 	if err != nil {
 		return nil, err
 	}
+	cfg.TLS = tlsConfig
+	connector, err := mysqldriver.NewConnector(cfg)
+	if err != nil {
+		return nil, err
+	}
+	db := sql.OpenDB(connector)
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(0)
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -94,6 +112,42 @@ func rejectDropDatabase(query string) error {
 		return fmt.Errorf("refusing to drop a database")
 	}
 	return nil
+}
+
+func (s Session) tlsConfig(member mysqlv1alpha1.MySQLMember) (*tls.Config, error) {
+	if s.TLS == nil || !s.TLS.Enabled() {
+		return nil, nil
+	}
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
+	name := s.TLS.ServerName
+	if name == "" {
+		name = member.Host
+	}
+	cfg.ServerName = name
+	switch s.TLS.Mode {
+	case mysqlv1alpha1.TLSModeSkipVerify:
+		cfg.InsecureSkipVerify = true
+	case mysqlv1alpha1.TLSModeRequired:
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+		if len(s.CA) > 0 && !pool.AppendCertsFromPEM(s.CA) {
+			return nil, fmt.Errorf("tls ca.crt is not a PEM certificate bundle")
+		}
+		cfg.RootCAs = pool
+	default:
+		return nil, fmt.Errorf("unsupported tls mode %q", s.TLS.Mode)
+	}
+	if len(s.ClientCert) == 0 && len(s.ClientKey) == 0 {
+		return cfg, nil
+	}
+	cert, err := tls.X509KeyPair(s.ClientCert, s.ClientKey)
+	if err != nil {
+		return nil, fmt.Errorf("tls client certificate: %w", err)
+	}
+	cfg.Certificates = []tls.Certificate{cert}
+	return cfg, nil
 }
 
 // PrepareSession disables the binary log when logBin is false.

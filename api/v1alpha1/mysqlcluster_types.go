@@ -35,6 +35,10 @@ type MySQLClusterSpec struct {
 	// +required
 	CredentialsSecret CredentialsSecretRef `json:"credentialsSecret"`
 
+	// tls configures the operator connection to MySQL. Omitted or Disabled is plaintext.
+	// +optional
+	TLS *ClusterTLS `json:"tls,omitempty"`
+
 	// privilegeReplication tells the operator whether DDL replicates through the binlog.
 	// +kubebuilder:validation:Enum=Replicated;Local
 	// +kubebuilder:default=Replicated

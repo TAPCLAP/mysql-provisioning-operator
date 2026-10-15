@@ -20,7 +20,7 @@ type Script struct {
 }
 
 // Open implements mysql.Opener and returns the same script.
-func (s *Script) Open(context.Context, mysqlv1alpha1.MySQLMember, string, string) (mysql.DB, error) {
+func (s *Script) Open(context.Context, mysqlv1alpha1.MySQLMember, mysql.Session) (mysql.DB, error) {
 	return s, nil
 }
 

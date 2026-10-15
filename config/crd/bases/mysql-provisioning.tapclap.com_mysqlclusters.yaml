@@ -139,6 +139,52 @@ spec:
                 - Replicated
                 - Local
                 type: string
+              tls:
+                description: tls configures the operator connection to MySQL. Omitted
+                  or Disabled is plaintext.
+                properties:
+                  caSecret:
+                    description: |-
+                      caSecret holds a PEM bundle in key ca.crt. It is trusted in addition to the system pool.
+                      Allowed only when mode is Required.
+                    properties:
+                      name:
+                        description: name is the Secret in the same namespace as the
+                          MySQLCluster.
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  clientSecret:
+                    description: |-
+                      clientSecret holds tls.crt and tls.key for mutual TLS.
+                      Allowed when mode is Required or SkipVerify.
+                    properties:
+                      name:
+                        description: name is the Secret in the same namespace as the
+                          MySQLCluster.
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  mode:
+                    default: Disabled
+                    description: mode is Disabled, Required, or SkipVerify. Defaults
+                      to Disabled.
+                    enum:
+                    - Disabled
+                    - Required
+                    - SkipVerify
+                    type: string
+                  serverName:
+                    description: |-
+                      serverName is the certificate name used for verification and SNI.
+                      Empty uses each member host.
+                    maxLength: 253
+                    type: string
+                type: object
             required:
             - credentialsSecret
             - master

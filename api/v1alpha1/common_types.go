@@ -109,11 +109,53 @@ func (m MySQLMember) AddressPort() int32 {
 	return m.Port
 }
 
-// CredentialsSecretRef points at the admin username and password Secret.
+// CredentialsSecretRef points at a Secret in the same namespace as the MySQLCluster.
 type CredentialsSecretRef struct {
 	// name is the Secret in the same namespace as the MySQLCluster.
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
+}
+
+// TLSMode controls the operator's own connection to MySQL.
+type TLSMode string
+
+const (
+	// TLSModeDisabled connects without TLS.
+	TLSModeDisabled TLSMode = "Disabled"
+	// TLSModeRequired requires TLS and verifies the server certificate.
+	TLSModeRequired TLSMode = "Required"
+	// TLSModeSkipVerify requires TLS and does not verify the server certificate.
+	TLSModeSkipVerify TLSMode = "SkipVerify"
+)
+
+// ClusterTLS is the operator's TLS configuration for one MySQL cluster.
+type ClusterTLS struct {
+	// mode is Disabled, Required, or SkipVerify. Defaults to Disabled.
+	// +kubebuilder:validation:Enum=Disabled;Required;SkipVerify
+	// +kubebuilder:default=Disabled
+	// +optional
+	Mode TLSMode `json:"mode,omitempty"`
+
+	// caSecret holds a PEM bundle in key ca.crt. It is trusted in addition to the system pool.
+	// Allowed only when mode is Required.
+	// +optional
+	CASecret *CredentialsSecretRef `json:"caSecret,omitempty"`
+
+	// clientSecret holds tls.crt and tls.key for mutual TLS.
+	// Allowed when mode is Required or SkipVerify.
+	// +optional
+	ClientSecret *CredentialsSecretRef `json:"clientSecret,omitempty"`
+
+	// serverName is the certificate name used for verification and SNI.
+	// Empty uses each member host.
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	ServerName string `json:"serverName,omitempty"`
+}
+
+// Enabled reports whether the operator must open a TLS session.
+func (t *ClusterTLS) Enabled() bool {
+	return t != nil && t.Mode != "" && t.Mode != TLSModeDisabled
 }
 
 // MasterSelection configures master discovery for a cluster.

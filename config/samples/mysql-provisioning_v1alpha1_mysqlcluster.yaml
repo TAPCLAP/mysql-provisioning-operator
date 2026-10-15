@@ -19,6 +19,11 @@ spec:
       port: 3306
   credentialsSecret:
     name: db1-admin
+  tls:
+    mode: Required
+    caSecret:
+      name: db1-ca
+    serverName: db1.internal
   privilegeReplication: Replicated
   defaultTarget: Master
   master:

@@ -45,14 +45,14 @@ func (r *MySQLClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return r.finish(ctx, original, &cluster)
 	}
 	access := r.access()
-	user, password, err := readAdminSecret(ctx, access.reader(), cluster.Namespace, cluster.Spec.CredentialsSecret.Name)
+	auth, err := readSession(ctx, access.reader(), &cluster)
 	if err != nil {
-		log.Error(err, "failed to read admin secret")
+		log.Error(err, "failed to read cluster credentials")
 		metrics.ReconcileErrors.WithLabelValues("mysqlcluster").Inc()
 		setCondition(&cluster.Status.Conditions, cluster.Generation, mysqlv1alpha1.ConditionReady, metav1.ConditionFalse, "AdminSecret", err.Error())
 		return r.finish(ctx, original, &cluster)
 	}
-	probes := mysql.ProbeAll(ctx, access.opener(), &cluster, user, password)
+	probes := mysql.ProbeAll(ctx, access.opener(), &cluster, auth)
 	selection := mysql.SelectMaster(&cluster, probes)
 	r.writeStatus(&cluster, selection)
 	return r.finish(ctx, original, &cluster)

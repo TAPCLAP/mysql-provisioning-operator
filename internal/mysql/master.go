@@ -89,10 +89,10 @@ func replicationConfigured(ctx context.Context, db DB) (configured bool, unknown
 }
 
 // ProbeAll dials every member. A dial error is stored on that member and does not abort the others.
-func ProbeAll(ctx context.Context, opener Opener, cluster *mysqlv1alpha1.MySQLCluster, user, password string) map[string]Probe {
+func ProbeAll(ctx context.Context, opener Opener, cluster *mysqlv1alpha1.MySQLCluster, session Session) map[string]Probe {
 	out := make(map[string]Probe, len(cluster.Spec.Members))
 	for _, member := range cluster.Spec.Members {
-		db, err := opener.Open(ctx, member, user, password)
+		db, err := opener.Open(ctx, member, session)
 		if err != nil {
 			out[member.Name] = Probe{Message: err.Error()}
 			continue

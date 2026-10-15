@@ -109,11 +109,11 @@ func (r *MySQLTenantReconciler) schemas(ctx context.Context, access clusterAcces
 	if err := r.Get(ctx, client.ObjectKey{Namespace: r.OperatorNamespace, Name: clusterName}, &cluster); err != nil {
 		return nil, err
 	}
-	user, password, err := readAdminSecret(ctx, access.reader(), cluster.Namespace, cluster.Spec.CredentialsSecret.Name)
+	auth, err := readSession(ctx, access.reader(), &cluster)
 	if err != nil {
 		return nil, err
 	}
-	selection := mysql.SelectMaster(&cluster, mysql.ProbeAll(ctx, access.opener(), &cluster, user, password))
+	selection := mysql.SelectMaster(&cluster, mysql.ProbeAll(ctx, access.opener(), &cluster, auth))
 	member := selection.Master
 	if member == nil && len(cluster.Spec.Members) > 0 {
 		first := cluster.Spec.Members[0]
@@ -122,7 +122,7 @@ func (r *MySQLTenantReconciler) schemas(ctx context.Context, access clusterAcces
 	if member == nil {
 		return nil, masterError(selection)
 	}
-	db, err := access.opener().Open(ctx, *member, user, password)
+	db, err := access.opener().Open(ctx, *member, auth)
 	if err != nil {
 		return nil, err
 	}

@@ -2,9 +2,12 @@ package validate
 
 import (
 	"fmt"
+	"regexp"
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
 )
+
+var serverNamePattern = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
 
 // Cluster checks structural rules that do not need other objects.
 func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
@@ -53,6 +56,33 @@ func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
 	}
 	if replication == mysqlv1alpha1.PrivilegeReplicationReplicated && target == mysqlv1alpha1.ApplyTargetAll {
 		return fmt.Errorf("defaultTarget All is incompatible with privilegeReplication Replicated")
+	}
+	return checkClusterTLS(obj.Spec.TLS)
+}
+
+func checkClusterTLS(tls *mysqlv1alpha1.ClusterTLS) error {
+	if tls == nil || !tls.Enabled() {
+		if tls != nil && (tls.CASecret != nil || tls.ClientSecret != nil || tls.ServerName != "") {
+			return fmt.Errorf("tls caSecret, clientSecret, and serverName require mode Required or SkipVerify")
+		}
+		return nil
+	}
+	if tls.Mode != mysqlv1alpha1.TLSModeRequired && tls.Mode != mysqlv1alpha1.TLSModeSkipVerify {
+		return fmt.Errorf("tls.mode must be Disabled, Required, or SkipVerify")
+	}
+	if tls.CASecret != nil {
+		if tls.Mode != mysqlv1alpha1.TLSModeRequired {
+			return fmt.Errorf("tls.caSecret is only used when mode is Required")
+		}
+		if tls.CASecret.Name == "" {
+			return fmt.Errorf("tls.caSecret.name is required")
+		}
+	}
+	if tls.ClientSecret != nil && tls.ClientSecret.Name == "" {
+		return fmt.Errorf("tls.clientSecret.name is required")
+	}
+	if tls.ServerName != "" && !serverNamePattern.MatchString(tls.ServerName) {
+		return fmt.Errorf("tls.serverName is invalid")
 	}
 	return nil
 }

@@ -31,6 +31,31 @@ func TestClusterExplicitAndDetected(t *testing.T) {
 	}
 }
 
+func TestClusterTLS(t *testing.T) {
+	disabled := baseCluster()
+	disabled.Spec.TLS = &mysqlv1alpha1.ClusterTLS{CASecret: &mysqlv1alpha1.CredentialsSecretRef{Name: "ca"}}
+	if err := Cluster(disabled); err == nil {
+		t.Fatal("plaintext cluster accepted a CA secret")
+	}
+	skip := baseCluster()
+	skip.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
+		Mode:     mysqlv1alpha1.TLSModeSkipVerify,
+		CASecret: &mysqlv1alpha1.CredentialsSecretRef{Name: "ca"},
+	}
+	if err := Cluster(skip); err == nil {
+		t.Fatal("skip-verify accepted a CA secret")
+	}
+	required := baseCluster()
+	required.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
+		Mode:       mysqlv1alpha1.TLSModeRequired,
+		CASecret:   &mysqlv1alpha1.CredentialsSecretRef{Name: "db1-ca"},
+		ServerName: "db.internal",
+	}
+	if err := Cluster(required); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTenantRejectsSuper(t *testing.T) {
 	tenant := baseTenant()
 	tenant.Spec.Access[0].Privileges = []string{"SUPER"}

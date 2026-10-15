@@ -50,8 +50,7 @@ type resolved struct {
 	Selection mysql.Selection
 	Members   []mysqlv1alpha1.MySQLMember
 	LogBin    bool
-	User      string
-	Password  string
+	Auth      mysql.Session
 }
 
 func (c clusterAccess) resolve(ctx context.Context, clusterName string, target mysqlv1alpha1.ApplyTarget) (resolved, error) {
@@ -61,13 +60,12 @@ func (c clusterAccess) resolve(ctx context.Context, clusterName string, target m
 		return out, err
 	}
 	out.Cluster = cluster
-	user, password, err := readAdminSecret(ctx, c.reader(), cluster.Namespace, cluster.Spec.CredentialsSecret.Name)
+	auth, err := readSession(ctx, c.reader(), cluster)
 	if err != nil {
 		return out, err
 	}
-	out.User = user
-	out.Password = password
-	out.Selection = mysql.SelectMaster(cluster, mysql.ProbeAll(ctx, c.opener(), cluster, user, password))
+	out.Auth = auth
+	out.Selection = mysql.SelectMaster(cluster, mysql.ProbeAll(ctx, c.opener(), cluster, auth))
 	effective := validate.EffectiveTarget(target, cluster)
 	if err := replicationAllowed(cluster, effective); err != nil {
 		return out, err
@@ -93,6 +91,52 @@ func (c clusterAccess) loadCluster(ctx context.Context, name string) (*mysqlv1al
 		return nil, fmt.Errorf("get cluster %s: %w", name, err)
 	}
 	return &cluster, nil
+}
+
+func readSession(ctx context.Context, reader client.Reader, cluster *mysqlv1alpha1.MySQLCluster) (mysql.Session, error) {
+	var session mysql.Session
+	user, password, err := readAdminSecret(ctx, reader, cluster.Namespace, cluster.Spec.CredentialsSecret.Name)
+	if err != nil {
+		return session, err
+	}
+	session.User = user
+	session.Password = password
+	session.TLS = cluster.Spec.TLS
+	if session.TLS == nil || !session.TLS.Enabled() {
+		return session, nil
+	}
+	if session.TLS.CASecret != nil {
+		ca, err := readSecretKey(ctx, reader, cluster.Namespace, session.TLS.CASecret.Name, "ca.crt")
+		if err != nil {
+			return session, err
+		}
+		session.CA = ca
+	}
+	if session.TLS.ClientSecret != nil {
+		cert, err := readSecretKey(ctx, reader, cluster.Namespace, session.TLS.ClientSecret.Name, "tls.crt")
+		if err != nil {
+			return session, err
+		}
+		key, err := readSecretKey(ctx, reader, cluster.Namespace, session.TLS.ClientSecret.Name, "tls.key")
+		if err != nil {
+			return session, err
+		}
+		session.ClientCert = cert
+		session.ClientKey = key
+	}
+	return session, nil
+}
+
+func readSecretKey(ctx context.Context, reader client.Reader, namespace, name, key string) ([]byte, error) {
+	var secret corev1.Secret
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &secret); err != nil {
+		return nil, fmt.Errorf("get secret %s/%s: %w", namespace, name, err)
+	}
+	value := secret.Data[key]
+	if len(value) == 0 {
+		return nil, fmt.Errorf("secret %s/%s must contain %s", namespace, name, key)
+	}
+	return value, nil
 }
 
 func readAdminSecret(ctx context.Context, reader client.Reader, namespace, name string) (string, string, error) {
@@ -159,7 +203,7 @@ func applyMembers(ctx context.Context, opener mysql.Opener, target resolved, fn 
 	var applied []string
 	var errs []error
 	for _, member := range target.Members {
-		db, err := opener.Open(ctx, member, target.User, target.Password)
+		db, err := opener.Open(ctx, member, target.Auth)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", member.Name, err))
 			continue
