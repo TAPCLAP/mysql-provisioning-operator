@@ -1,0 +1,86 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mysql-provisioning-tapclap-com-v1alpha1-mysqlcluster
+  failurePolicy: Fail
+  name: vmysqlcluster-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - mysql-provisioning.tapclap.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - mysqlclusters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mysql-provisioning-tapclap-com-v1alpha1-mysqldatabase
+  failurePolicy: Fail
+  name: vmysqldatabase-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - mysql-provisioning.tapclap.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - mysqldatabases
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mysql-provisioning-tapclap-com-v1alpha1-mysqltenant
+  failurePolicy: Fail
+  name: vmysqltenant-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - mysql-provisioning.tapclap.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - mysqltenants
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-mysql-provisioning-tapclap-com-v1alpha1-mysqluser
+  failurePolicy: Fail
+  name: vmysqluser-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - mysql-provisioning.tapclap.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - mysqlusers
+  sideEffects: None

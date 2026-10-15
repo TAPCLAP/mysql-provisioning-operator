@@ -1,0 +1,25 @@
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLTenant
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql-provisioning-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: payments
+  namespace: mysql-provisioning-system
+spec:
+  namespaces: ["payments", "payments-staging"]
+  quotas:
+    maxDatabases: 20
+    maxUsers: 50
+  access:
+    - cluster: db1
+      databases:
+        type: Glob
+        patterns: ["payments_*"]
+      users:
+        type: Glob
+        patterns: ["payments_*"]
+      hosts: ["%"]
+      targets: ["Master"]
+      requireTLS: Required
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "INDEX", "ALTER"]

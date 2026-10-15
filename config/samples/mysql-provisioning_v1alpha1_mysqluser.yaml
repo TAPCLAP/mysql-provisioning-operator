@@ -1,0 +1,35 @@
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLUser
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql-provisioning-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: payments-app
+  namespace: payments
+spec:
+  cluster: db1
+  username: payments_app
+  hosts: ["%"]
+  authPlugin: caching_sha2_password
+  requireTLS: true
+  target: Master
+  password:
+    retention: 24h
+    generation: 1
+  grants:
+    - database: payments_main
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"]
+      tables: ["*"]
+  secret:
+    name: payments-app
+    data:
+      USERNAME: "{{ .Username }}"
+      PASSWORD: "{{ .Password }}"
+      PASSWORD_PREVIOUS: "{{ .PreviousPassword }}"
+      HOSTS: "{{ .Hosts | join \",\" }}"
+      PRIMARY_HOST: "{{ .Master.Host }}"
+      DSN: "{{ .Username }}:{{ .Password }}@tcp({{ .Master.Host }}:{{ .Master.Port }})/payments_main"
+    entries:
+      - forEach: members
+        key: "{{ .Item.Name | upper }}_HOST"
+        value: "{{ .Item.Host }}"

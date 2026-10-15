@@ -1,0 +1,14 @@
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLDatabase
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql-provisioning-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: payments-main
+  namespace: payments
+spec:
+  cluster: db1
+  name: payments_main
+  characterSet: utf8mb3
+  collation: utf8mb3_general_ci
+  target: Master

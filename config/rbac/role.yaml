@@ -1,0 +1,58 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mysql-provisioning.tapclap.com
+  resources:
+  - mysqlclusters
+  - mysqldatabases
+  - mysqltenants
+  - mysqlusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql-provisioning.tapclap.com
+  resources:
+  - mysqlclusters/finalizers
+  - mysqldatabases/finalizers
+  - mysqltenants/finalizers
+  - mysqlusers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mysql-provisioning.tapclap.com
+  resources:
+  - mysqlclusters/status
+  - mysqldatabases/status
+  - mysqltenants/status
+  - mysqlusers/status
+  verbs:
+  - get
+  - patch
+  - update

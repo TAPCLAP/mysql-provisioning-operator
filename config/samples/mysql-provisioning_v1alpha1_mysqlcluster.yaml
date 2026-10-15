@@ -1,0 +1,29 @@
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: mysql-provisioning-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: db1
+  namespace: mysql-provisioning-system
+spec:
+  members:
+    - name: db1-1
+      host: db1-1.internal
+      port: 3306
+    - name: db1-2
+      host: db1-2.internal
+      port: 3306
+    - name: db1-3
+      host: db1-3.internal
+      port: 3306
+  credentialsSecret:
+    name: db1-admin
+  privilegeReplication: Replicated
+  defaultTarget: Master
+  master:
+    mode: Detected
+    criteria:
+      readOnlyOff: true
+      superReadOnlyOff: true
+      noReplicationConfigured: true

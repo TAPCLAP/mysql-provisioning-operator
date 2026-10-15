@@ -1,0 +1,7 @@
+## Append samples of your project ##
+resources:
+- mysql-provisioning_v1alpha1_mysqlcluster.yaml
+- mysql-provisioning_v1alpha1_mysqltenant.yaml
+- mysql-provisioning_v1alpha1_mysqldatabase.yaml
+- mysql-provisioning_v1alpha1_mysqluser.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
