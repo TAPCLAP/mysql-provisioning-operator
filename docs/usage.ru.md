@@ -195,7 +195,9 @@ spec:
 Эти привилегии и схемы запрещены, даже если allow-list широкий:
 
 - схемы `mysql`, `sys`, `information_schema`, `performance_schema`;
-- привилегии `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION`, `CREATE USER`, `ALL`, `ALL PRIVILEGES`.
+- привилегии `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION`, `CREATE USER`.
+
+`ALL` разрешена только на именованную базу, которая совпадает с паттернами тенанта, и только если в `privileges` этой политики есть `ALL`. На `*.*` и на схемы `mysql`, `sys`, `information_schema`, `performance_schema` её выдать нельзя.
 
 `status.orphanDatabases` перечисляет схемы, которые подходят под паттерны тенанта и для которых нет объекта `MySQLDatabase`. Это только список. Оператор эти схемы не удаляет.
 

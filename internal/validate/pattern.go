@@ -22,8 +22,6 @@ var deniedPrivileges = map[string]struct{}{
 	"CONNECTION_ADMIN": {},
 	"GRANT_OPTION":     {},
 	"CREATE_USER":      {},
-	"ALL":              {},
-	"ALL_PRIVILEGES":   {},
 }
 
 var systemSchemas = map[string]struct{}{
@@ -36,7 +34,11 @@ var systemSchemas = map[string]struct{}{
 // NormalizePrivilege uppercases a privilege and turns spaces into underscores.
 func NormalizePrivilege(priv string) string {
 	priv = strings.ToUpper(strings.TrimSpace(priv))
-	return strings.ReplaceAll(priv, " ", "_")
+	priv = strings.ReplaceAll(priv, " ", "_")
+	if priv == "ALL_PRIVILEGES" {
+		return "ALL"
+	}
+	return priv
 }
 
 // PrivilegeDenied reports a platform-wide forbidden privilege.

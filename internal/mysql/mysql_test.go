@@ -167,6 +167,35 @@ func TestParseGrantsAndDiff(t *testing.T) {
 	}
 }
 
+func TestAllPrivilegeStaysOnOneDatabase(t *testing.T) {
+	actual, err := mysql.ParseGrants([]string{
+		"GRANT ALL PRIVILEGES ON `payments_main`.* TO `app`@`%`",
+		"GRANT SELECT ON `payments_main`.* TO `app`@`%`",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	statements, err := mysql.GrantStatements("app", "%", []mysql.DesiredGrant{{
+		Database: "payments_main", Table: "*", Privileges: []string{"ALL"},
+	}}, actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(statements) != 0 {
+		t.Fatalf("ALL already applied, statements = %s", strings.Join(statements, "\n"))
+	}
+	statements, err = mysql.GrantStatements("app", "%", []mysql.DesiredGrant{{
+		Database: "payments_main", Table: "*", Privileges: []string{"ALL"},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(statements, "\n")
+	if joined != "GRANT ALL ON `payments_main`.* TO 'app'@'%'" {
+		t.Fatalf("statements = %s", joined)
+	}
+}
+
 func TestSupportsDualPassword(t *testing.T) {
 	if !mysql.SupportsDualPassword("8.0.36") || !mysql.SupportsDualPassword("8.4.0") {
 		t.Fatal("expected dual password support")

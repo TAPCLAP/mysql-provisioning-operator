@@ -101,7 +101,11 @@ func unquoteIdent(value string) string {
 
 func normalizePriv(priv string) string {
 	priv = strings.ToUpper(strings.TrimSpace(priv))
-	return strings.ReplaceAll(priv, " ", "_")
+	priv = strings.ReplaceAll(priv, " ", "_")
+	if priv == "ALL_PRIVILEGES" {
+		return "ALL"
+	}
+	return priv
 }
 
 // GrantStatements returns GRANT and REVOKE statements that move actual to desired.
@@ -123,28 +127,59 @@ func GrantStatements(user, host string, desired []DesiredGrant, actual map[grant
 			set[normalizePriv(priv)] = struct{}{}
 		}
 	}
-	var statements []string
-	for _, key := range sortedGrantKeys(want) {
-		missing := difference(want[key], actual[key])
-		stmt, err := privilegeStatement("GRANT", key, missing, account)
+	union := map[grantKey]map[string]struct{}{}
+	for key, privs := range want {
+		union[key] = privs
+	}
+	for key := range actual {
+		if _, ok := union[key]; !ok {
+			union[key] = nil
+		}
+	}
+	var revokeAll, grants, revokes []string
+	for _, key := range sortedGrantKeys(union) {
+		have := actual[key]
+		need := want[key]
+		_, haveAll := have["ALL"]
+		_, wantAll := need["ALL"]
+		if haveAll && !wantAll {
+			stmt, err := privilegeStatement("REVOKE", key, []string{"ALL"}, account)
+			if err != nil {
+				return nil, err
+			}
+			revokeAll = append(revokeAll, stmt)
+			have = nil
+		}
+		if wantAll {
+			stmt, err := privilegeStatement("GRANT", key, difference(map[string]struct{}{"ALL": {}}, have), account)
+			if err != nil {
+				return nil, err
+			}
+			if stmt != "" {
+				grants = append(grants, stmt)
+			}
+			continue
+		}
+		stmt, err := privilegeStatement("GRANT", key, difference(need, have), account)
 		if err != nil {
 			return nil, err
 		}
 		if stmt != "" {
-			statements = append(statements, stmt)
+			grants = append(grants, stmt)
 		}
-	}
-	for _, key := range sortedGrantKeys(actual) {
-		extra := difference(actual[key], want[key])
-		stmt, err := privilegeStatement("REVOKE", key, extra, account)
+		if haveAll {
+			continue
+		}
+		stmt, err = privilegeStatement("REVOKE", key, difference(have, need), account)
 		if err != nil {
 			return nil, err
 		}
 		if stmt != "" {
-			statements = append(statements, stmt)
+			revokes = append(revokes, stmt)
 		}
 	}
-	return statements, nil
+	statements := append(revokeAll, grants...)
+	return append(statements, revokes...), nil
 }
 
 func sortedGrantKeys(grants map[grantKey]map[string]struct{}) []grantKey {

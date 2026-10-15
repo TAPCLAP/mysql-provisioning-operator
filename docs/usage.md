@@ -195,7 +195,9 @@ Quotas count live objects in the tenant namespace. A nil quota is unlimited. If 
 These privileges and schemas are refused even when the allow-list is wide:
 
 - schemas `mysql`, `sys`, `information_schema`, `performance_schema`;
-- privileges `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION`, `CREATE USER`, `ALL`, `ALL PRIVILEGES`.
+- privileges `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION`, `CREATE USER`.
+
+`ALL` is allowed only on a named database that matches the tenant patterns, and only when that tenant's `privileges` list includes `ALL`. It cannot be granted on `*.*` or on `mysql`, `sys`, `information_schema`, or `performance_schema`.
 
 `status.orphanDatabases` lists schemas that match the tenant patterns and have no `MySQLDatabase` object. The list is informational. The operator does not delete those schemas.
 
