@@ -19,11 +19,11 @@
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.3
+  --version 0.0.4
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.3 \
+  --version 0.0.4 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
