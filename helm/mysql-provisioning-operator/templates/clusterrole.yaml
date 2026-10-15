@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "mysql-provisioning-operator.fullname" . }}
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch", "delete"]
+  - apiGroups: ["mysql-provisioning.tapclap.com"]
+    resources: ["mysqlclusters", "mysqldatabases", "mysqltenants", "mysqlusers"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["mysql-provisioning.tapclap.com"]
+    resources: ["mysqlclusters/finalizers", "mysqldatabases/finalizers", "mysqltenants/finalizers", "mysqlusers/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["mysql-provisioning.tapclap.com"]
+    resources: ["mysqlclusters/status", "mysqldatabases/status", "mysqltenants/status", "mysqlusers/status"]
+    verbs: ["get", "patch", "update"]
+{{- if .Values.metrics.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "mysql-provisioning-operator.fullname" . }}-metrics-auth
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["authentication.k8s.io"]
+    resources: ["tokenreviews"]
+    verbs: ["create"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["subjectaccessreviews"]
+    verbs: ["create"]
+{{- end }}

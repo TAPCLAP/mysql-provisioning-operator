@@ -1,0 +1,29 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "mysql-provisioning-operator.fullname" . }}
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+  {{- if .Values.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "mysql-provisioning-operator.certificateName" . }}
+  {{- end }}
+webhooks:
+  {{- range $kind := list "mysqlcluster" "mysqldatabase" "mysqltenant" "mysqluser" }}
+  - name: v{{ $kind }}-v1alpha1.mysql-provisioning.tapclap.com
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+    sideEffects: None
+    clientConfig:
+      service:
+        name: {{ include "mysql-provisioning-operator.webhookServiceName" $ }}
+        namespace: {{ $.Release.Namespace }}
+        path: /validate-mysql-provisioning-tapclap-com-v1alpha1-{{ $kind }}
+    rules:
+      - apiGroups: ["mysql-provisioning.tapclap.com"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["{{ $kind }}s"]
+  {{- end }}
+{{- end }}

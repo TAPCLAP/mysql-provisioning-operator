@@ -1,0 +1,17 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mysql-provisioning-operator.webhookServiceName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: webhook-server
+  selector:
+    {{- include "mysql-provisioning-operator.selectorLabels" . | nindent 4 }}
+{{- end }}

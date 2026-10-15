@@ -1,0 +1,15 @@
+apiVersion: v2
+name: mysql-provisioning-operator
+description: Provision MySQL databases, users, and Secrets on existing MySQL clusters.
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+kubeVersion: ">=1.30.0-0"
+keywords:
+  - mysql
+  - operator
+  - kubernetes
+home: https://github.com/tapclap/mysql-provisioning-operator
+sources:
+  - https://github.com/tapclap/mysql-provisioning-operator
+maintainers: []

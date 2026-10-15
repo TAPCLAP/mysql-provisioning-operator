@@ -1,0 +1,46 @@
+replicaCount: 1
+
+image:
+  # Published image. The release workflow rewrites this to the repository that built the chart.
+  repository: ghcr.io/tapclap/mysql-provisioning-operator
+  # Empty uses Chart.appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  annotations: {}
+
+# MySQLCluster and MySQLTenant are read from the release namespace.
+leaderElection: true
+
+webhook:
+  enabled: true
+
+# cert-manager issues the webhook certificate and injects its CA into the validating webhook.
+# Required while webhook.enabled is true, because the webhook failure policy is Fail.
+certManager:
+  enabled: true
+
+metrics:
+  enabled: true
+  bindAddress: ":8443"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podLabels: {}

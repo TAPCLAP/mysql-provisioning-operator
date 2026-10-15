@@ -1,0 +1,27 @@
+{{- if and .Values.webhook.enabled .Values.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "mysql-provisioning-operator.fullname" . }}-selfsigned
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "mysql-provisioning-operator.certificateName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mysql-provisioning-operator.labels" . | nindent 4 }}
+spec:
+  secretName: webhook-server-cert
+  dnsNames:
+    - {{ include "mysql-provisioning-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "mysql-provisioning-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "mysql-provisioning-operator.fullname" . }}-selfsigned
+{{- end }}

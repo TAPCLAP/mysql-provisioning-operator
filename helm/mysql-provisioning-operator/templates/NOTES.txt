@@ -1,0 +1,13 @@
+mysql-provisioning-operator is installed in namespace {{ .Release.Namespace }}.
+Put MySQLCluster and MySQLTenant in this namespace. Tenants create MySQLDatabase and MySQLUser in their own namespaces.
+
+Image: {{ include "mysql-provisioning-operator.image" . }}
+{{- if .Values.webhook.enabled }}
+
+The validating webhook uses failurePolicy Fail.
+{{- if .Values.certManager.enabled }}
+cert-manager must already be installed so it can issue the webhook certificate.
+{{- else }}
+Set certManager.enabled=true or supply the webhook CA yourself before creating MySQL resources.
+{{- end }}
+{{- end }}
