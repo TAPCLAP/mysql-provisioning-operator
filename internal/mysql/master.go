@@ -38,17 +38,24 @@ func ProbeMember(ctx context.Context, db DB) (Probe, error) {
 	if err != nil {
 		return Probe{Message: err.Error()}, err
 	}
-	defer func() { _ = rows.Close() }()
 	var probe Probe
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return Probe{Message: err.Error()}, err
-		}
-		return Probe{Message: "empty read_only probe"}, fmt.Errorf("empty read_only probe")
-	}
 	var readOnly, superReadOnly int64
-	if err := rows.Scan(&readOnly, &superReadOnly, &probe.ServerID); err != nil {
-		return Probe{Message: err.Error()}, err
+	hasRow := rows.Next()
+	var readErr error
+	if hasRow {
+		readErr = rows.Scan(&readOnly, &superReadOnly, &probe.ServerID)
+	} else {
+		readErr = rows.Err()
+	}
+	closeErr := rows.Close()
+	if readErr != nil {
+		return Probe{Message: readErr.Error()}, readErr
+	}
+	if closeErr != nil {
+		return Probe{Message: closeErr.Error()}, closeErr
+	}
+	if !hasRow {
+		return Probe{Message: "empty read_only probe"}, fmt.Errorf("empty read_only probe")
 	}
 	probe.Reachable = true
 	probe.ReadOnly = readOnly != 0
@@ -63,16 +70,23 @@ func ProbeMember(ctx context.Context, db DB) (Probe, error) {
 func replicationConfigured(ctx context.Context, db DB) (configured bool, unknown bool, message string) {
 	rows, err := db.Query(ctx, "SELECT COUNT(*) FROM performance_schema.replication_connection_configuration")
 	if err == nil {
-		defer func() { _ = rows.Close() }()
-		if rows.Next() {
-			var count int64
-			if scanErr := rows.Scan(&count); scanErr != nil {
-				return false, true, scanErr.Error()
-			}
-			return count > 0, false, ""
+		var count int64
+		hasRow := rows.Next()
+		var scanErr error
+		if hasRow {
+			scanErr = rows.Scan(&count)
+		} else {
+			scanErr = rows.Err()
 		}
-		if err := rows.Err(); err != nil {
-			return false, true, err.Error()
+		closeErr := rows.Close()
+		if scanErr != nil {
+			return false, true, scanErr.Error()
+		}
+		if closeErr != nil {
+			return false, true, closeErr.Error()
+		}
+		if hasRow {
+			return count > 0, false, ""
 		}
 	}
 	for _, query := range []string{"SHOW REPLICA STATUS", "SHOW SLAVE STATUS"} {
