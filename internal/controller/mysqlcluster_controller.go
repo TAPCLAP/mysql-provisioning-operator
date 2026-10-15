@@ -30,6 +30,7 @@ type MySQLClusterReconciler struct {
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqlclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqlclusters/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile probes members and publishes the selected master.

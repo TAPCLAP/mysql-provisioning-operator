@@ -105,13 +105,11 @@ func readSession(ctx context.Context, reader client.Reader, cluster *mysqlv1alph
 	if session.TLS == nil || !session.TLS.Enabled() {
 		return session, nil
 	}
-	if session.TLS.CASecret != nil {
-		ca, err := readSecretKey(ctx, reader, cluster.Namespace, session.TLS.CASecret.Name, "ca.crt")
-		if err != nil {
-			return session, err
-		}
-		session.CA = ca
+	ca, err := readCA(ctx, reader, cluster.Namespace, session.TLS)
+	if err != nil {
+		return session, err
 	}
+	session.CA = ca
 	if session.TLS.ClientSecret != nil {
 		cert, err := readSecretKey(ctx, reader, cluster.Namespace, session.TLS.ClientSecret.Name, "tls.crt")
 		if err != nil {
@@ -125,6 +123,33 @@ func readSession(ctx context.Context, reader client.Reader, cluster *mysqlv1alph
 		session.ClientKey = key
 	}
 	return session, nil
+}
+
+func readCA(ctx context.Context, reader client.Reader, namespace string, tls *mysqlv1alpha1.ClusterTLS) ([]byte, error) {
+	switch {
+	case tls.CASecret != nil && tls.CAConfigMap != nil:
+		return nil, fmt.Errorf("tls.caSecret and tls.caConfigMap are mutually exclusive")
+	case tls.CASecret != nil:
+		return readSecretKey(ctx, reader, namespace, tls.CASecret.Name, tls.CASecret.KeyOrDefault("ca.crt"))
+	case tls.CAConfigMap != nil:
+		return readConfigMapKey(ctx, reader, namespace, tls.CAConfigMap.Name, tls.CAConfigMap.KeyOrDefault("ca.crt"))
+	default:
+		return nil, nil
+	}
+}
+
+func readConfigMapKey(ctx context.Context, reader client.Reader, namespace, name, key string) ([]byte, error) {
+	var configMap corev1.ConfigMap
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &configMap); err != nil {
+		return nil, fmt.Errorf("get configmap %s/%s: %w", namespace, name, err)
+	}
+	if value := configMap.Data[key]; value != "" {
+		return []byte(value), nil
+	}
+	if value := configMap.BinaryData[key]; len(value) > 0 {
+		return value, nil
+	}
+	return nil, fmt.Errorf("configmap %s/%s must contain %s", namespace, name, key)
 }
 
 func readSecretKey(ctx context.Context, reader client.Reader, namespace, name, key string) ([]byte, error) {

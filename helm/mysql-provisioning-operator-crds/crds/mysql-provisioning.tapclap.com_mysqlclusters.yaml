@@ -143,13 +143,40 @@ spec:
                 description: tls configures the operator connection to MySQL. Omitted
                   or Disabled is plaintext.
                 properties:
+                  caConfigMap:
+                    description: |-
+                      caConfigMap holds a PEM bundle in data or binaryData. key defaults to ca.crt.
+                      It is trusted in addition to the system pool.
+                      Allowed only when mode is Required. Mutually exclusive with caSecret.
+                    properties:
+                      key:
+                        default: ca.crt
+                        description: key is the data key. Defaults to ca.crt.
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                      name:
+                        description: name is the object in the same namespace as the
+                          MySQLCluster.
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
                   caSecret:
                     description: |-
-                      caSecret holds a PEM bundle in key ca.crt. It is trusted in addition to the system pool.
-                      Allowed only when mode is Required.
+                      caSecret holds a PEM bundle. key defaults to ca.crt.
+                      It is trusted in addition to the system pool.
+                      Allowed only when mode is Required. Mutually exclusive with caConfigMap.
                     properties:
+                      key:
+                        default: ca.crt
+                        description: key is the data key. Defaults to ca.crt.
+                        maxLength: 253
+                        minLength: 1
+                        type: string
                       name:
-                        description: name is the Secret in the same namespace as the
+                        description: name is the object in the same namespace as the
                           MySQLCluster.
                         minLength: 1
                         type: string

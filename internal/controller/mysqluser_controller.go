@@ -40,6 +40,7 @@ type MySQLUserReconciler struct {
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqltenants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqldatabases,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile creates the MySQL account, grants, and application Secret.

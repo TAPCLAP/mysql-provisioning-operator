@@ -116,6 +116,28 @@ type CredentialsSecretRef struct {
 	Name string `json:"name"`
 }
 
+// ObjectKeyRef selects one key in a namespaced object next to the MySQLCluster.
+type ObjectKeyRef struct {
+	// name is the object in the same namespace as the MySQLCluster.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// key is the data key. Defaults to ca.crt.
+	// +kubebuilder:default=ca.crt
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	Key string `json:"key,omitempty"`
+}
+
+// KeyOrDefault returns key, or fallback when key is empty.
+func (r *ObjectKeyRef) KeyOrDefault(fallback string) string {
+	if r == nil || r.Key == "" {
+		return fallback
+	}
+	return r.Key
+}
+
 // TLSMode controls the operator's own connection to MySQL.
 type TLSMode string
 
@@ -136,10 +158,17 @@ type ClusterTLS struct {
 	// +optional
 	Mode TLSMode `json:"mode,omitempty"`
 
-	// caSecret holds a PEM bundle in key ca.crt. It is trusted in addition to the system pool.
-	// Allowed only when mode is Required.
+	// caSecret holds a PEM bundle. key defaults to ca.crt.
+	// It is trusted in addition to the system pool.
+	// Allowed only when mode is Required. Mutually exclusive with caConfigMap.
 	// +optional
-	CASecret *CredentialsSecretRef `json:"caSecret,omitempty"`
+	CASecret *ObjectKeyRef `json:"caSecret,omitempty"`
+
+	// caConfigMap holds a PEM bundle in data or binaryData. key defaults to ca.crt.
+	// It is trusted in addition to the system pool.
+	// Allowed only when mode is Required. Mutually exclusive with caSecret.
+	// +optional
+	CAConfigMap *ObjectKeyRef `json:"caConfigMap,omitempty"`
 
 	// clientSecret holds tls.crt and tls.key for mutual TLS.
 	// Allowed when mode is Required or SkipVerify.

@@ -40,6 +40,7 @@ type MySQLDatabaseReconciler struct {
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqltenants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqlusers,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile creates a schema and never drops it.

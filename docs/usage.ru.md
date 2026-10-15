@@ -50,7 +50,7 @@ stringData:
   password: replace-me
 ```
 
-Для подключения по TLS нужен второй Secret. `ca.crt` — PEM-bundle, он добавляется к системному хранилищу. Необязательный клиентский сертификат — это `tls.crt` и `tls.key` в `spec.tls.clientSecret`.
+Для подключения по TLS положите CA как PEM-bundle. `caSecret` читает Secret, `caConfigMap` читает ConfigMap. Поле `key` задаёт ключ, если данные лежат не в `ca.crt`. Можно указать только один из двух источников. Bundle добавляется к системному хранилищу. Необязательный клиентский сертификат — это `tls.crt` и `tls.key` в `spec.tls.clientSecret`.
 
 ```yaml
 apiVersion: v1
@@ -86,7 +86,15 @@ spec:
     mode: Detected
 ```
 
-`tls.mode` по умолчанию `Disabled`: обычный TCP. `Required` проверяет сертификат сервера. `SkipVerify` шифрует соединение и сертификат не проверяет. `caSecret` допустим только вместе с `Required`. `serverName` — имя для проверки и SNI; если оно пустое, берётся host каждого member.
+`tls.mode` по умолчанию `Disabled`: обычный TCP. `Required` проверяет сертификат сервера. `SkipVerify` шифрует соединение и сертификат не проверяет. `caSecret` и `caConfigMap` допустимы только вместе с `Required`. `serverName` — имя для проверки и SNI; если оно пустое, берётся host каждого member.
+
+```yaml
+tls:
+  mode: Required
+  caConfigMap:
+    name: db1-ca
+    key: ca.pem
+```
 
 `privilegeReplication` говорит, едут ли `CREATE DATABASE` и `CREATE USER` через binlog:
 

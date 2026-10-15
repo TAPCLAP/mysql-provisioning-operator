@@ -57,7 +57,7 @@ func TestOperatorMySQL(t *testing.T) {
 			Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
 			TLS: &mysqlv1alpha1.ClusterTLS{
 				Mode:       mysqlv1alpha1.TLSModeRequired,
-				CASecret:   &mysqlv1alpha1.CredentialsSecretRef{Name: "db1-ca"},
+				CASecret:   &mysqlv1alpha1.ObjectKeyRef{Name: "db1-ca"},
 				ServerName: "localhost",
 			},
 		},

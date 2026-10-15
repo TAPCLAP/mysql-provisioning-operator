@@ -34,6 +34,7 @@ type MySQLTenantReconciler struct {
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqldatabases,verbs=get;list;watch
 // +kubebuilder:rbac:groups=mysql-provisioning.tapclap.com,resources=mysqlusers,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile lists schemas that match the tenant and have no MySQLDatabase.

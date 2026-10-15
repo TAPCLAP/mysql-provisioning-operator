@@ -33,14 +33,14 @@ func TestClusterExplicitAndDetected(t *testing.T) {
 
 func TestClusterTLS(t *testing.T) {
 	disabled := baseCluster()
-	disabled.Spec.TLS = &mysqlv1alpha1.ClusterTLS{CASecret: &mysqlv1alpha1.CredentialsSecretRef{Name: "ca"}}
+	disabled.Spec.TLS = &mysqlv1alpha1.ClusterTLS{CASecret: &mysqlv1alpha1.ObjectKeyRef{Name: "ca"}}
 	if err := Cluster(disabled); err == nil {
 		t.Fatal("plaintext cluster accepted a CA secret")
 	}
 	skip := baseCluster()
 	skip.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
 		Mode:     mysqlv1alpha1.TLSModeSkipVerify,
-		CASecret: &mysqlv1alpha1.CredentialsSecretRef{Name: "ca"},
+		CASecret: &mysqlv1alpha1.ObjectKeyRef{Name: "ca"},
 	}
 	if err := Cluster(skip); err == nil {
 		t.Fatal("skip-verify accepted a CA secret")
@@ -48,10 +48,27 @@ func TestClusterTLS(t *testing.T) {
 	required := baseCluster()
 	required.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
 		Mode:       mysqlv1alpha1.TLSModeRequired,
-		CASecret:   &mysqlv1alpha1.CredentialsSecretRef{Name: "db1-ca"},
+		CASecret:   &mysqlv1alpha1.ObjectKeyRef{Name: "db1-ca", Key: "root.pem"},
 		ServerName: "db.internal",
 	}
 	if err := Cluster(required); err != nil {
+		t.Fatal(err)
+	}
+	both := baseCluster()
+	both.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
+		Mode:        mysqlv1alpha1.TLSModeRequired,
+		CASecret:    &mysqlv1alpha1.ObjectKeyRef{Name: "db1-ca"},
+		CAConfigMap: &mysqlv1alpha1.ObjectKeyRef{Name: "db1-ca", Key: "ca.pem"},
+	}
+	if err := Cluster(both); err == nil {
+		t.Fatal("both CA sources were accepted")
+	}
+	fromConfigMap := baseCluster()
+	fromConfigMap.Spec.TLS = &mysqlv1alpha1.ClusterTLS{
+		Mode:        mysqlv1alpha1.TLSModeRequired,
+		CAConfigMap: &mysqlv1alpha1.ObjectKeyRef{Name: "db1-ca", Key: "ca.pem"},
+	}
+	if err := Cluster(fromConfigMap); err != nil {
 		t.Fatal(err)
 	}
 }

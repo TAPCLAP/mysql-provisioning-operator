@@ -62,27 +62,44 @@ func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
 
 func checkClusterTLS(tls *mysqlv1alpha1.ClusterTLS) error {
 	if tls == nil || !tls.Enabled() {
-		if tls != nil && (tls.CASecret != nil || tls.ClientSecret != nil || tls.ServerName != "") {
-			return fmt.Errorf("tls caSecret, clientSecret, and serverName require mode Required or SkipVerify")
+		if tls != nil && (tls.CASecret != nil || tls.CAConfigMap != nil || tls.ClientSecret != nil || tls.ServerName != "") {
+			return fmt.Errorf("tls caSecret, caConfigMap, clientSecret, and serverName require mode Required or SkipVerify")
 		}
 		return nil
 	}
 	if tls.Mode != mysqlv1alpha1.TLSModeRequired && tls.Mode != mysqlv1alpha1.TLSModeSkipVerify {
 		return fmt.Errorf("tls.mode must be Disabled, Required, or SkipVerify")
 	}
-	if tls.CASecret != nil {
-		if tls.Mode != mysqlv1alpha1.TLSModeRequired {
-			return fmt.Errorf("tls.caSecret is only used when mode is Required")
-		}
-		if tls.CASecret.Name == "" {
-			return fmt.Errorf("tls.caSecret.name is required")
-		}
+	if tls.CASecret != nil && tls.CAConfigMap != nil {
+		return fmt.Errorf("tls.caSecret and tls.caConfigMap are mutually exclusive")
+	}
+	if err := checkCARef("tls.caSecret", tls.Mode, tls.CASecret); err != nil {
+		return err
+	}
+	if err := checkCARef("tls.caConfigMap", tls.Mode, tls.CAConfigMap); err != nil {
+		return err
 	}
 	if tls.ClientSecret != nil && tls.ClientSecret.Name == "" {
 		return fmt.Errorf("tls.clientSecret.name is required")
 	}
 	if tls.ServerName != "" && !serverNamePattern.MatchString(tls.ServerName) {
 		return fmt.Errorf("tls.serverName is invalid")
+	}
+	return nil
+}
+
+func checkCARef(field string, mode mysqlv1alpha1.TLSMode, ref *mysqlv1alpha1.ObjectKeyRef) error {
+	if ref == nil {
+		return nil
+	}
+	if mode != mysqlv1alpha1.TLSModeRequired {
+		return fmt.Errorf("%s is only used when mode is Required", field)
+	}
+	if ref.Name == "" {
+		return fmt.Errorf("%s.name is required", field)
+	}
+	if ref.Key != "" && !serverNamePattern.MatchString(ref.Key) {
+		return fmt.Errorf("%s.key is invalid", field)
 	}
 	return nil
 }

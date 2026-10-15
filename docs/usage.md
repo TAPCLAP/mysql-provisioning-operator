@@ -50,7 +50,7 @@ stringData:
   password: replace-me
 ```
 
-To connect with TLS, add a second Secret. `ca.crt` is a PEM bundle and is added to the system trust store. Optional mutual TLS uses `tls.crt` and `tls.key` in `spec.tls.clientSecret`.
+To connect with TLS, add the CA as a PEM bundle. `caSecret` reads a Secret and `caConfigMap` reads a ConfigMap. Set `key` when the data is not under `ca.crt`. Only one of the two sources may be set. The bundle is added to the system trust store. Optional mutual TLS uses `tls.crt` and `tls.key` in `spec.tls.clientSecret`.
 
 ```yaml
 apiVersion: v1
@@ -86,7 +86,15 @@ spec:
     mode: Detected
 ```
 
-`tls.mode` defaults to `Disabled` (plain TCP). `Required` verifies the server certificate. `SkipVerify` encrypts and does not verify it. `caSecret` is allowed only with `Required`. `serverName` is the name used for verification and SNI; when it is empty, each member host is used.
+`tls.mode` defaults to `Disabled` (plain TCP). `Required` verifies the server certificate. `SkipVerify` encrypts and does not verify it. `caSecret` and `caConfigMap` are allowed only with `Required`. `serverName` is the name used for verification and SNI; when it is empty, each member host is used.
+
+```yaml
+tls:
+  mode: Required
+  caConfigMap:
+    name: db1-ca
+    key: ca.pem
+```
 
 `privilegeReplication` says whether `CREATE DATABASE` and `CREATE USER` travel through the binlog:
 

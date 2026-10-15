@@ -133,7 +133,7 @@ func (s Session) tlsConfig(member mysqlv1alpha1.MySQLMember) (*tls.Config, error
 			pool = x509.NewCertPool()
 		}
 		if len(s.CA) > 0 && !pool.AppendCertsFromPEM(s.CA) {
-			return nil, fmt.Errorf("tls ca.crt is not a PEM certificate bundle")
+			return nil, fmt.Errorf("tls CA is not a PEM certificate bundle")
 		}
 		cfg.RootCAs = pool
 	default:
