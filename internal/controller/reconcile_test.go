@@ -122,6 +122,44 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "payments-app", Namespace: "default"}, &secret)).To(Succeed())
 		Expect(secret.Data[mysqlv1alpha1.SecretKeyPassword]).NotTo(BeEmpty())
 
+		suffixUser := &mysqlv1alpha1.MySQLUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "payments-suffix", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLUserSpec{
+				Cluster: "db1", Username: "payments_sfx", Hosts: []string{"%"},
+				AuthPlugin: mysqlv1alpha1.AuthPluginCachingSHA2, RequireTLS: true,
+				Target:         mysqlv1alpha1.ApplyTargetMaster,
+				UsernameSuffix: &mysqlv1alpha1.UsernameSuffix{Length: 4},
+				Grants:         []mysqlv1alpha1.GrantSpec{{Database: "payments_main", Privileges: []string{"SELECT"}}},
+				Secret:         mysqlv1alpha1.SecretTemplate{Name: "payments-suffix", Data: map[string]string{"USER": "{{ .Username }}"}},
+			},
+		}
+		Expect(k8sClient.Create(ctx, suffixUser)).To(Succeed())
+		suffixName := types.NamespacedName{Name: suffixUser.Name, Namespace: suffixUser.Namespace}
+		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: suffixName})
+		Expect(err).NotTo(HaveOccurred())
+		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: suffixName})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, suffixName, suffixUser)).To(Succeed())
+		Expect(suffixUser.Status.Username).To(HavePrefix("payments_sfx"))
+		Expect(suffixUser.Status.Username).To(HaveLen(len("payments_sfx") + 4))
+		createdName := false
+		for _, query := range script.Queries {
+			if strings.Contains(query, "CREATE USER") && strings.Contains(query, "'"+suffixUser.Status.Username+"'") {
+				createdName = true
+			}
+		}
+		Expect(createdName).To(BeTrue())
+		var suffixSecret corev1.Secret
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "payments-suffix", Namespace: "default"}, &suffixSecret)).To(Succeed())
+		Expect(string(suffixSecret.Data["USER"])).To(Equal(suffixUser.Status.Username))
+		chosen := suffixUser.Status.Username
+		suffixUser.Spec.UsernameSuffix.Length = 8
+		Expect(k8sClient.Update(ctx, suffixUser)).To(Succeed())
+		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: suffixName})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, suffixName, suffixUser)).To(Succeed())
+		Expect(suffixUser.Status.Username).To(Equal(chosen))
+
 		Expect(k8sClient.Delete(ctx, user)).To(Succeed())
 		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: user.Name, Namespace: user.Namespace}})
 		Expect(err).NotTo(HaveOccurred())

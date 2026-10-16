@@ -24,11 +24,11 @@ cert-manager должен стоять до чарта. У webhook `failurePolic
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.5
+  --version 0.0.6
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.5 \
+  --version 0.0.6 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -281,6 +281,18 @@ spec:
 
 `username` неизменяемый и не длиннее 32 символов. Каждый host — отдельная учётка. Пустой `hosts` означает `%`. `authPlugin` — `caching_sha2_password` или `mysql_native_password`. Если сервер отвергает plugin, ошибка пишется в status. Тихого перехода на другой plugin нет.
 
+`usernameSuffix` дописывает к `username` случайные символы из `a-z0-9`. `length` по умолчанию 8. Префикс вместе с суффиксом не длиннее 32 символов. Оператор выбирает имя учётки один раз, на первом reconcile с пустым `status.username`, и записывает его туда. В MySQL и в шаблоне Secret поле `.Username` берётся оттуда. Без `usernameSuffix` записанное имя равно `username`.
+
+Если добавить `usernameSuffix` к пользователю, у которого `status.username` уже заполнен, или потом поменять `length`, учётка не переименовывается. Учётка в MySQL, Secret и `.Username` остаются прежними. Пользователь, созданный до появления этого поля, на первом reconcile этой версии оператора получает `status.username`, равный `username`, поэтому суффикс, добавленный после такого reconcile, ни на что не влияет.
+
+Суффикс применяется, только если он уже указан в том reconcile, который впервые заполняет пустой `status.username`. Тогда оператор создаёт учётку с именем `username` плюс случайный суффикс. Старую учётку, созданную под одним `username`, он не удаляет. `DROP USER` выполняется только при удалении `MySQLUser` и только для имени из `status.username`.
+
+```yaml
+username: user
+usernameSuffix:
+  length: 8
+```
+
 `requireTLS: true` — это `REQUIRE SSL`. `false` — `REQUIRE NONE`. Смена флага делает `ALTER USER` и пароль не ротирует.
 
 Права сверяются с `SHOW GRANTS`: недостающие выдаются, лишние снимаются. `USAGE` на `*.*` игнорируется. Grant ждёт, пока указанная база появится.
@@ -293,7 +305,7 @@ spec:
 
 | Поле | Тип | Значение |
 |---|---|---|
-| `.Username` | строка | `spec.username` |
+| `.Username` | строка | Имя учётки в MySQL. Это `spec.username` или `spec.username` плюс случайный суффикс из `status.username` |
 | `.Password` | строка | Текущий пароль |
 | `.PreviousPassword` | строка | Предыдущий пароль или пустая строка, если его нет |
 | `.Hosts` | список строк | `spec.hosts`. Пустой spec даёт один элемент, `%` |

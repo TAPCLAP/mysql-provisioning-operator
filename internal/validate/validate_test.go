@@ -201,6 +201,45 @@ func baseCluster() *mysqlv1alpha1.MySQLCluster {
 	}}
 }
 
+func TestUsernameSuffixLength(t *testing.T) {
+	n, err := UsernameSuffixLength(nil)
+	if err != nil || n != 0 {
+		t.Fatalf("missing suffix length %d: %v", n, err)
+	}
+	n, err = UsernameSuffixLength(&mysqlv1alpha1.UsernameSuffix{})
+	if err != nil || n != DefaultUsernameSuffixLength {
+		t.Fatalf("default suffix length %d: %v", n, err)
+	}
+	n, err = UsernameSuffixLength(&mysqlv1alpha1.UsernameSuffix{Length: 4})
+	if err != nil || n != 4 {
+		t.Fatalf("explicit suffix length %d: %v", n, err)
+	}
+	if _, err := UsernameSuffixLength(&mysqlv1alpha1.UsernameSuffix{Length: 32}); err == nil {
+		t.Fatal("suffix length 32 was allowed")
+	}
+
+	scheme := runtime.NewScheme()
+	if err := mysqlv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(baseCluster(), baseTenant()).Build()
+	user := &mysqlv1alpha1.MySQLUser{ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "payments"}, Spec: mysqlv1alpha1.MySQLUserSpec{
+		Cluster: "db1", Username: "payments_app", AuthPlugin: mysqlv1alpha1.AuthPluginCachingSHA2,
+		Hosts: []string{"%"}, RequireTLS: true, Target: mysqlv1alpha1.ApplyTargetMaster,
+		Password:       mysqlv1alpha1.PasswordSpec{Retention: "24h", Generation: 1},
+		Grants:         []mysqlv1alpha1.GrantSpec{{Database: "payments_main", Privileges: []string{"SELECT"}}},
+		Secret:         mysqlv1alpha1.SecretTemplate{Name: "payments-app"},
+		UsernameSuffix: &mysqlv1alpha1.UsernameSuffix{Length: 8},
+	}}
+	if err := User(context.Background(), cl, "mysql-provisioning-system", user, true); err != nil {
+		t.Fatal(err)
+	}
+	user.Spec.Username = "payments_app_payments_app"
+	if err := User(context.Background(), cl, "mysql-provisioning-system", user, true); err == nil {
+		t.Fatal("username plus suffix longer than 32 characters was allowed")
+	}
+}
+
 func baseTenant() *mysqlv1alpha1.MySQLTenant {
 	return &mysqlv1alpha1.MySQLTenant{ObjectMeta: metav1.ObjectMeta{Name: "payments", Namespace: "mysql-provisioning-system"}, Spec: mysqlv1alpha1.MySQLTenantSpec{
 		Namespaces: []string{"payments"},

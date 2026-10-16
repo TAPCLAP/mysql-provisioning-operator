@@ -87,17 +87,35 @@ type SecretTemplate struct {
 	Entries []SecretEntry `json:"entries,omitempty"`
 }
 
+// UsernameSuffix appends random characters to spec.username.
+type UsernameSuffix struct {
+	// length is how many random characters are appended. Default 8.
+	// The full account name stays within 32 characters.
+	// +kubebuilder:default=8
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=31
+	// +optional
+	Length int32 `json:"length,omitempty"`
+}
+
 // MySQLUserSpec defines an account, its grants, and the Secret that publishes the password.
+// +kubebuilder:validation:XValidation:rule="!has(self.usernameSuffix) || size(self.username) + (self.usernameSuffix.length > 0 ? self.usernameSuffix.length : 8) <= 32",message="username plus the random suffix must be at most 32 characters"
 type MySQLUserSpec struct {
 	// cluster is the MySQLCluster name in the operator namespace.
 	// +kubebuilder:validation:MinLength=1
 	Cluster string `json:"cluster"`
 
-	// username is the MySQL account name. It is immutable and at most 32 characters.
+	// username is the MySQL account name, or the prefix when usernameSuffix is set.
+	// It is immutable and at most 32 characters.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=32
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="username is immutable"
 	Username string `json:"username"`
+
+	// usernameSuffix appends random letters and digits to username.
+	// Omit it to use username as the account name.
+	// +optional
+	UsernameSuffix *UsernameSuffix `json:"usernameSuffix,omitempty"`
 
 	// hosts are the MySQL account hosts. Empty defaults to ["%"].
 	// Each user@host pair is a separate account.
@@ -162,6 +180,10 @@ type PasswordStatus struct {
 
 // MySQLUserStatus reports accounts and password rotation.
 type MySQLUserStatus struct {
+	// username is the MySQL account name chosen for this object.
+	// +optional
+	Username string `json:"username,omitempty"`
+
 	// appliedOn lists member names where the account was applied.
 	// +optional
 	AppliedOn []string `json:"appliedOn,omitempty"`

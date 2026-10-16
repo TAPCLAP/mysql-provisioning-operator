@@ -191,20 +191,40 @@ spec:
                 - All
                 type: string
               username:
-                description: username is the MySQL account name. It is immutable and
-                  at most 32 characters.
+                description: |-
+                  username is the MySQL account name, or the prefix when usernameSuffix is set.
+                  It is immutable and at most 32 characters.
                 maxLength: 32
                 minLength: 1
                 type: string
                 x-kubernetes-validations:
                 - message: username is immutable
                   rule: self == oldSelf
+              usernameSuffix:
+                description: |-
+                  usernameSuffix appends random letters and digits to username.
+                  Omit it to use username as the account name.
+                properties:
+                  length:
+                    default: 8
+                    description: |-
+                      length is how many random characters are appended. Default 8.
+                      The full account name stays within 32 characters.
+                    format: int32
+                    maximum: 31
+                    minimum: 1
+                    type: integer
+                type: object
             required:
             - authPlugin
             - cluster
             - secret
             - username
             type: object
+            x-kubernetes-validations:
+            - message: username plus the random suffix must be at most 32 characters
+              rule: '!has(self.usernameSuffix) || size(self.username) + (self.usernameSuffix.length
+                > 0 ? self.usernameSuffix.length : 8) <= 32'
           status:
             description: status defines the observed state of MySQLUser
             properties:
@@ -299,6 +319,9 @@ spec:
                     format: date-time
                     type: string
                 type: object
+              username:
+                description: username is the MySQL account name chosen for this object.
+                type: string
             type: object
         required:
         - spec

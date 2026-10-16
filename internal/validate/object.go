@@ -63,6 +63,13 @@ func User(ctx context.Context, c client.Client, operatorNamespace string, obj *m
 	if !validIdent(obj.Spec.Username, 32) {
 		return fmt.Errorf("invalid username %q", obj.Spec.Username)
 	}
+	suffix, err := UsernameSuffixLength(obj.Spec.UsernameSuffix)
+	if err != nil {
+		return err
+	}
+	if suffix > 0 && len(obj.Spec.Username)+suffix > 32 {
+		return fmt.Errorf("username plus usernameSuffix.length must be at most 32 characters")
+	}
 	if obj.Spec.Secret.Name == "" {
 		return fmt.Errorf("secret.name is required")
 	}
@@ -357,4 +364,23 @@ func validIdent(name string, maxLen int) bool {
 
 func validHost(host string) bool {
 	return host != "" && len(host) <= 255 && hostPattern.MatchString(host)
+}
+
+// DefaultUsernameSuffixLength is used when usernameSuffix is set and length is omitted.
+const DefaultUsernameSuffixLength = 8
+
+// UsernameSuffixLength returns how many random characters to append.
+// Zero means the account name is spec.username.
+func UsernameSuffixLength(suffix *mysqlv1alpha1.UsernameSuffix) (int, error) {
+	if suffix == nil {
+		return 0, nil
+	}
+	n := int(suffix.Length)
+	if n == 0 {
+		return DefaultUsernameSuffixLength, nil
+	}
+	if n < 1 || n > 31 {
+		return 0, fmt.Errorf("usernameSuffix.length must be from 1 to 31")
+	}
+	return n, nil
 }

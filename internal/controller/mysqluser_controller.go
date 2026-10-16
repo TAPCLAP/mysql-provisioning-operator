@@ -72,6 +72,9 @@ func (r *MySQLUserReconciler) reconcile(ctx context.Context, user *mysqlv1alpha1
 		return r.finish(ctx, original, user, requeueObject)
 	}
 	setCondition(&user.Status.Conditions, user.Generation, mysqlv1alpha1.ConditionAuthorized, metav1.ConditionTrue, "Allowed", "tenant policy allows this user")
+	if err := r.ensureAccountName(ctx, user); err != nil {
+		return r.fail(ctx, original, user, err)
+	}
 
 	target, err := r.access().resolve(ctx, user.Spec.Cluster, user.Spec.Target)
 	if err != nil {
@@ -173,7 +176,7 @@ func (r *MySQLUserReconciler) applyAccounts(ctx context.Context, user *mysqlv1al
 	opener := r.access().opener()
 	for _, host := range removedHosts(user.Status.ManagedHosts, hosts) {
 		if _, err := applyMembers(ctx, opener, target, func(ctx context.Context, _ mysqlv1alpha1.MySQLMember, db mysql.DB) error {
-			return mysql.DropAccount(ctx, db, user.Spec.Username, host)
+			return mysql.DropAccount(ctx, db, accountName(user), host)
 		}); err != nil {
 			return err
 		}
@@ -195,7 +198,7 @@ func (r *MySQLUserReconciler) applyAccounts(ctx context.Context, user *mysqlv1al
 
 func accountFor(user *mysqlv1alpha1.MySQLUser, host string, plan password.Output) mysql.Account {
 	return mysql.Account{
-		User:               user.Spec.Username,
+		User:               accountName(user),
 		Host:               host,
 		Plugin:             user.Spec.AuthPlugin,
 		Password:           plan.Password,
@@ -301,7 +304,7 @@ func (r *MySQLUserReconciler) dropAll(ctx context.Context, user *mysqlv1alpha1.M
 		}
 		seen[host] = struct{}{}
 		if _, err := applyMembers(ctx, r.access().opener(), target, func(ctx context.Context, _ mysqlv1alpha1.MySQLMember, db mysql.DB) error {
-			return mysql.DropAccount(ctx, db, user.Spec.Username, host)
+			return mysql.DropAccount(ctx, db, accountName(user), host)
 		}); err != nil {
 			return err
 		}

@@ -24,11 +24,11 @@ cert-manager must be installed before the chart. The webhook `failurePolicy` is 
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.5
+  --version 0.0.6
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.5 \
+  --version 0.0.6 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -281,6 +281,18 @@ spec:
 
 `username` is immutable and at most 32 characters. Each host is a separate account. An empty `hosts` list means `%`. `authPlugin` is `caching_sha2_password` or `mysql_native_password`. If the server rejects the plugin, status records the error. The operator does not switch plugins on its own.
 
+`usernameSuffix` appends random characters from `a-z0-9` to `username`. `length` defaults to 8. The prefix and the suffix together stay within 32 characters. The operator chooses the account name once, on the first reconcile that finds `status.username` empty, and stores it there. MySQL and the Secret template `.Username` use that recorded name. Without `usernameSuffix`, the recorded name is `username`.
+
+Adding `usernameSuffix` to a user that already has `status.username`, or changing `length` afterwards, does not rename the account. The MySQL account, the Secret, and `.Username` stay as they are. A user created before this field existed gets `status.username` equal to `username` on the first reconcile of this operator version, so a suffix added after that reconcile has no effect.
+
+The suffix is applied only when it is already present on the reconcile that first fills an empty `status.username`. The operator then creates an account named `username` plus the random suffix. It does not drop an older account that was created under `username` alone. `DROP USER` runs only when the `MySQLUser` is deleted, and only for the name in `status.username`.
+
+```yaml
+username: user
+usernameSuffix:
+  length: 8
+```
+
 `requireTLS: true` means `REQUIRE SSL`. `false` means `REQUIRE NONE`. Changing the flag runs `ALTER USER` and does not rotate the password.
 
 Grants are reconciled from `SHOW GRANTS`: missing privileges are granted and extra ones are revoked. `USAGE` on `*.*` is ignored. A grant waits until that database exists.
@@ -293,7 +305,7 @@ Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, an
 
 | Field | Type | Value |
 |---|---|---|
-| `.Username` | string | `spec.username` |
+| `.Username` | string | MySQL account name. This is `spec.username`, or `spec.username` plus the random suffix recorded in `status.username` |
 | `.Password` | string | Current password |
 | `.PreviousPassword` | string | Retained password, or empty when there is none |
 | `.Hosts` | list of strings | `spec.hosts`. Empty spec means one entry, `%` |

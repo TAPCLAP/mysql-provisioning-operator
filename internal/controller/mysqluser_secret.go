@@ -117,7 +117,7 @@ func (r *MySQLUserReconciler) deleteAppSecret(ctx context.Context, user *mysqlv1
 
 func renderSecret(user *mysqlv1alpha1.MySQLUser, target resolved, plan password.Output, previous string) (map[string]string, error) {
 	data := secrettpl.Data{
-		Username:         user.Spec.Username,
+		Username:         accountName(user),
 		Password:         plan.Password,
 		PreviousPassword: previous,
 		Hosts:            effectiveHosts(user),
