@@ -23,6 +23,9 @@ spec:
     - jsonPath: .spec.username
       name: User
       type: string
+    - jsonPath: .spec.secret.name
+      name: Secret
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
