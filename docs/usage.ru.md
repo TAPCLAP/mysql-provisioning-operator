@@ -113,13 +113,29 @@ kubectl get mysqlcluster -n mysql-provisioning-system
 
 ### Как выбирается мастер
 
-`master.mode: Detected` на каждом reconcile опрашивает все members. Включённые критерии складываются через И. Хотя бы один критерий должен быть включён. Пропущенный критерий считается включённым:
+`master.mode: Detected` на каждом reconcile опрашивает все members и оставляет тот, который проходит `spec.master.criteria`.
 
-- `readOnlyOff`: `@@global.read_only = 0`
-- `superReadOnlyOff`: `@@global.super_read_only = 0`
-- `noReplicationConfigured`: на узле нет настроенного источника репликации. Остановленный поток реплики при заполненном `SOURCE_HOST` или `MASTER_HOST` критерий не проходит. У primary в Group Replication каналы есть, поэтому этот критерий выключают или ставят `Explicit`.
+`spec.master.criteria` необязателен. Каждое поле — булево, включённые проверки складываются через И. Пропущенное поле по умолчанию `true`, поэтому пустой объект `criteria` или его отсутствие включает все три проверки. `false` выключает только эту проверку. Все три `false` отклоняются: хотя бы одна проверка должна остаться включённой. Недоступный member не проходит никогда.
 
-Ноль совпадений — условие `NoMaster`. Больше одного — `SplitBrain`. В обоих случаях DDL в этом цикле не выполняется.
+```yaml
+spec:
+  master:
+    mode: Detected
+    criteria:
+      readOnlyOff: true
+      superReadOnlyOff: true
+      noReplicationConfigured: true
+```
+
+| Поле | По умолчанию | Узел проходит, если |
+|---|---|---|
+| `readOnlyOff` | `true` | `@@global.read_only = 0` |
+| `superReadOnlyOff` | `true` | `@@global.super_read_only = 0` |
+| `noReplicationConfigured` | `true` | На узле нет настроенного источника репликации |
+
+`noReplicationConfigured` читает `performance_schema.replication_connection_configuration`. Если эту таблицу прочитать нельзя, оператор пробует `SHOW REPLICA STATUS`, затем `SHOW SLAVE STATUS`. Остановленный поток реплики при заполненном `SOURCE_HOST` или `MASTER_HOST` всё равно считается настроенной репликацией. Если оператор не смог понять, настроена ли репликация, узел эту проверку не проходит. У primary в Group Replication каналы есть, поэтому это поле выключают или ставят `master.mode: Explicit`.
+
+Ноль совпадений — условие `NoMaster`. Больше одного — `SplitBrain`. В обоих случаях DDL в этом цикле не выполняется. `status.members[].matchesCriteria` записывает результат этих проверок для каждого member.
 
 `master.mode: Explicit` берёт единственный member с `master: true` и критерии для выбора не использует. Ровно один member должен быть помечен. В режиме `Detected` поле `master: true` запрещено. Недоступный явный мастер — это `MasterUnavailable`, DDL тоже пропускается. В status всё равно пишется, прошёл бы этот узел текущие критерии.
 

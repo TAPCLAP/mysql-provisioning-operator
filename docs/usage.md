@@ -113,13 +113,29 @@ kubectl get mysqlcluster -n mysql-provisioning-system
 
 ### How the master is chosen
 
-`master.mode: Detected` probes every member on each reconcile. Enabled criteria are combined with AND. At least one criterion must be enabled. Omitted criteria default to on:
+`master.mode: Detected` probes every member on each reconcile and keeps the member that passes `spec.master.criteria`.
 
-- `readOnlyOff`: `@@global.read_only = 0`
-- `superReadOnlyOff`: `@@global.super_read_only = 0`
-- `noReplicationConfigured`: no replication source is configured. A stopped replica thread still counts as configured when `SOURCE_HOST` or `MASTER_HOST` is set. A Group Replication primary has channels, so turn this criterion off or use `Explicit`.
+`spec.master.criteria` is optional. Each field is a boolean, and the enabled checks are combined with AND. A field that is omitted defaults to `true`, so an empty `criteria` object, or no `criteria` at all, turns all three checks on. Setting a field to `false` disables only that check. All three set to `false` is rejected: at least one check must stay enabled. An unreachable member never passes.
 
-Zero matches sets condition `NoMaster`. More than one match sets `SplitBrain`. In both cases the operator skips DDL for that cycle.
+```yaml
+spec:
+  master:
+    mode: Detected
+    criteria:
+      readOnlyOff: true
+      superReadOnlyOff: true
+      noReplicationConfigured: true
+```
+
+| Field | Default | Passes when |
+|---|---|---|
+| `readOnlyOff` | `true` | `@@global.read_only = 0` |
+| `superReadOnlyOff` | `true` | `@@global.super_read_only = 0` |
+| `noReplicationConfigured` | `true` | The member has no replication source configured |
+
+`noReplicationConfigured` reads `performance_schema.replication_connection_configuration`. If that table cannot be queried, the operator falls back to `SHOW REPLICA STATUS`, then `SHOW SLAVE STATUS`. A stopped replica thread still counts as configured when `SOURCE_HOST` or `MASTER_HOST` is set. If the operator cannot tell whether replication is configured, the member fails this check. A Group Replication primary has channels, so turn this field off or use `master.mode: Explicit`.
+
+Zero matches sets condition `NoMaster`. More than one match sets `SplitBrain`. In both cases the operator skips DDL for that cycle. `status.members[].matchesCriteria` records the result of these checks for every member.
 
 `master.mode: Explicit` uses the single member with `master: true` and does not use the criteria to choose. Exactly one member must be marked. `master: true` is forbidden in `Detected` mode. An unreachable explicit master sets `MasterUnavailable` and DDL is skipped. Status still records whether that member would have passed the criteria.
 
