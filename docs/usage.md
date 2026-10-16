@@ -289,9 +289,31 @@ Grants are reconciled from `SHOW GRANTS`: missing privileges are granted and ext
 
 ### Secret template
 
-Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, and `getHostByName` are not available. The template can see only this user: `Username`, `Password`, `PreviousPassword`, `Hosts`, `Plugin`, `Cluster`, `Master`, `Members`, `Databases`. It cannot read other Secrets.
+Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, and `getHostByName` are not available. A template cannot read other Secrets. These are the only fields:
 
-`PASSWORD` and `PASSWORD_PREVIOUS` are reserved. The operator sets them after rendering, so a template cannot replace the password with something else. `entries` repeats a key and value for each cluster member. `forEach` supports only `members`. `.Item.Index` is the member's position in `spec.members`, starting at 1. Rendered keys must match `[A-Za-z0-9_.-]+`.
+| Field | Type | Value |
+|---|---|---|
+| `.Username` | string | `spec.username` |
+| `.Password` | string | Current password |
+| `.PreviousPassword` | string | Retained password, or empty when there is none |
+| `.Hosts` | list of strings | `spec.hosts`. Empty spec means one entry, `%` |
+| `.Plugin` | string | `spec.authPlugin` |
+| `.Cluster` | string | `spec.cluster` |
+| `.Databases` | list of strings | Database names from `spec.grants`, in spec order |
+| `.Master` | object | Selected master. Empty when no master is selected |
+| `.Members` | list of objects | Every member of the cluster, in `spec.members` order |
+| `.Item` | object | Current member inside `entries[].forEach`. Empty outside `entries` |
+
+`.Master`, `.Members`, and `.Item` have the same fields:
+
+| Field | Type | Value |
+|---|---|---|
+| `.Name` | string | `MySQLCluster.spec.members[].name` |
+| `.Host` | string | Member host |
+| `.Port` | number | Member port. `3306` when the cluster omits it |
+| `.Index` | number | 1-based position in `spec.members` |
+
+`PASSWORD` and `PASSWORD_PREVIOUS` are reserved. The operator sets them after rendering, so a template cannot replace the password with something else. `entries` repeats a key and value for each cluster member. `forEach` supports only `members`, and `.Item` is that member. Rendered keys must match `[A-Za-z0-9_.-]+`. An empty rendered value is omitted.
 
 The Secret is created in the same namespace as the `MySQLUser`, with an owner reference. The operator does not watch Secrets. A hand edit of `PASSWORD`, and the moment a retained password should be discarded, are picked up on the next reconcile: the sooner of one minute, the retention deadline, and `rotateEvery`. A change to the `MySQLUser` spec is reconciled immediately.
 

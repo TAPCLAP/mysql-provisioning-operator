@@ -289,9 +289,31 @@ spec:
 
 ### Шаблон Secret
 
-Шаблоны — это Go `text/template` и урезанный Sprig. Функций `env`, `expandenv` и `getHostByName` нет. В шаблон попадает только этот пользователь: `Username`, `Password`, `PreviousPassword`, `Hosts`, `Plugin`, `Cluster`, `Master`, `Members`, `Databases`. Чужие Secret из шаблона не читаются.
+Шаблоны — это Go `text/template` и урезанный Sprig. Функций `env`, `expandenv` и `getHostByName` нет. Чужие Secret из шаблона не читаются. Доступны только эти поля:
 
-`PASSWORD` и `PASSWORD_PREVIOUS` зарезервированы. Оператор записывает их после рендера, поэтому шаблон не может подменить пароль. `entries` повторяет ключ и значение для каждого member кластера. `forEach` поддерживает только `members`. `.Item.Index` — порядковый номер member в `spec.members`, начиная с 1. Имя ключа должно совпадать с `[A-Za-z0-9_.-]+`.
+| Поле | Тип | Значение |
+|---|---|---|
+| `.Username` | строка | `spec.username` |
+| `.Password` | строка | Текущий пароль |
+| `.PreviousPassword` | строка | Предыдущий пароль или пустая строка, если его нет |
+| `.Hosts` | список строк | `spec.hosts`. Пустой spec даёт один элемент, `%` |
+| `.Plugin` | строка | `spec.authPlugin` |
+| `.Cluster` | строка | `spec.cluster` |
+| `.Databases` | список строк | Имена баз из `spec.grants`, в порядке spec |
+| `.Master` | объект | Выбранный мастер. Пустой, если мастер не выбран |
+| `.Members` | список объектов | Все members кластера, в порядке `spec.members` |
+| `.Item` | объект | Текущий member внутри `entries[].forEach`. Вне `entries` пустой |
+
+У `.Master`, `.Members` и `.Item` одни и те же поля:
+
+| Поле | Тип | Значение |
+|---|---|---|
+| `.Name` | строка | `MySQLCluster.spec.members[].name` |
+| `.Host` | строка | Host member |
+| `.Port` | число | Порт member. `3306`, если в кластере порт не задан |
+| `.Index` | число | Позиция в `spec.members`, начиная с 1 |
+
+`PASSWORD` и `PASSWORD_PREVIOUS` зарезервированы. Оператор записывает их после рендера, поэтому шаблон не может подменить пароль. `entries` повторяет ключ и значение для каждого member кластера. `forEach` поддерживает только `members`, и `.Item` — это этот member. Имя ключа должно совпадать с `[A-Za-z0-9_.-]+`. Пустое значение в Secret не записывается.
 
 Secret создаётся в том же namespace, что и `MySQLUser`, с owner reference. Оператор не watch'ит Secret. Ручная правка `PASSWORD` и момент, когда старый пароль пора снять, подхватываются следующим reconcile: что наступит раньше — минута, срок retention или `rotateEvery`. Изменение spec `MySQLUser` приходит сразу.
 
