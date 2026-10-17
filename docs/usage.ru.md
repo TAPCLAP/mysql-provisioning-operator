@@ -272,6 +272,7 @@ spec:
       PASSWORD_PREVIOUS: "{{ .PreviousPassword }}"
       HOSTS: "{{ .Hosts | join \",\" }}"
       PRIMARY_HOST: "{{ .Master.Host }}"
+      REPLICA_HOST: "{{ .Replica.Host }}"
       DSN: "{{ .Username }}:{{ .Password }}@tcp({{ .Master.Host }}:{{ .Master.Port }})/payments_main"
     entries:
       - forEach: members
@@ -315,10 +316,11 @@ usernameSuffix:
 | `.Cluster` | строка | `spec.cluster` |
 | `.Databases` | список строк | Имена баз из `spec.grants`, в порядке spec |
 | `.Master` | объект | Выбранный мастер. Пустой, если мастер не выбран |
+| `.Replica` | объект | Один member, который не выбран мастером: первый такой в `spec.members`. Пустой, если мастер не выбран или мастер — единственный member |
 | `.Members` | список объектов | Все members кластера, в порядке `spec.members` |
 | `.Item` | объект | Текущий member внутри `entries[].forEach`. Вне `entries` пустой |
 
-У `.Master`, `.Members` и `.Item` одни и те же поля:
+У `.Master`, `.Replica`, `.Members` и `.Item` одни и те же поля:
 
 | Поле | Тип | Значение |
 |---|---|---|

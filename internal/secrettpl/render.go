@@ -34,9 +34,12 @@ type Data struct {
 	Plugin           string
 	Cluster          string
 	Master           Endpoint
-	Members          []Endpoint
-	Databases        []string
-	Item             Endpoint
+	// Replica is one member that is not the selected master.
+	// It is the first such member in spec.members order.
+	Replica   Endpoint
+	Members   []Endpoint
+	Databases []string
+	Item      Endpoint
 }
 
 // Entry expands a key and value for each member.

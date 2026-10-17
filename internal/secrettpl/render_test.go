@@ -6,6 +6,7 @@ func TestRenderTemplatesAndEntries(t *testing.T) {
 	out, err := Render(map[string]string{
 		"USERNAME": "{{ .Username }}",
 		"DSN":      "{{ .Username }}:{{ .Password }}@tcp({{ .Master.Host }}:{{ .Master.Port }})/app",
+		"REPLICA":  "{{ .Replica.Host }}",
 		"HOSTS":    `{{ .Hosts | join "," }}`,
 	}, []Entry{{
 		ForEach: "members",
@@ -20,6 +21,7 @@ func TestRenderTemplatesAndEntries(t *testing.T) {
 		Password: "secret",
 		Hosts:    []string{"%"},
 		Master:   Endpoint{Name: "db1-1", Host: "db1-1.internal", Port: 3306},
+		Replica:  Endpoint{Name: "db1-2", Host: "db1-2.internal", Port: 3306, Index: 2},
 		Members:  []Endpoint{{Name: "db1-1", Host: "db1-1.internal", Port: 3306, Index: 1}, {Name: "db1-2", Host: "db1-2.internal", Port: 3306, Index: 2}},
 	})
 	if err != nil {
@@ -28,7 +30,7 @@ func TestRenderTemplatesAndEntries(t *testing.T) {
 	if out["USERNAME"] != "payments_app" || out["DB1-1_HOST"] != "db1-1.internal" || out["DB1-2_HOST"] != "db1-2.internal" || out["MEMBER_1_HOST"] != "db1-1.internal" || out["MEMBER_2_HOST"] != "db1-2.internal" {
 		t.Fatalf("%#v", out)
 	}
-	if out["HOSTS"] != "%" || out["DSN"] != "payments_app:secret@tcp(db1-1.internal:3306)/app" {
+	if out["HOSTS"] != "%" || out["DSN"] != "payments_app:secret@tcp(db1-1.internal:3306)/app" || out["REPLICA"] != "db1-2.internal" {
 		t.Fatalf("%#v", out)
 	}
 }

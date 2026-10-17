@@ -28,6 +28,7 @@ spec:
       PASSWORD_PREVIOUS: "{{ .PreviousPassword }}"
       HOSTS: "{{ .Hosts | join \",\" }}"
       PRIMARY_HOST: "{{ .Master.Host }}"
+      REPLICA_HOST: "{{ .Replica.Host }}"
       DSN: "{{ .Username }}:{{ .Password }}@tcp({{ .Master.Host }}:{{ .Master.Port }})/payments_main"
     entries:
       - forEach: members

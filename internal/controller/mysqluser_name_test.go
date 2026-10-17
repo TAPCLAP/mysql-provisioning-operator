@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
+	"github.com/tapclap/mysql-provisioning-operator/internal/mysql"
+	"github.com/tapclap/mysql-provisioning-operator/internal/secrettpl"
 )
 
 func TestRandomSuffix(t *testing.T) {
@@ -31,5 +33,34 @@ func TestAccountNameUsesRecordedName(t *testing.T) {
 	user.Status.Username = "usera1b2c3d4"
 	if accountName(user) != "usera1b2c3d4" {
 		t.Fatalf("recorded account name %q", accountName(user))
+	}
+}
+
+func TestReplicaEndpoint(t *testing.T) {
+	cluster := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{Members: []mysqlv1alpha1.MySQLMember{
+		{Name: "db1-1", Host: "db1-1"},
+		{Name: "db1-2", Host: "db1-2"},
+		{Name: "db1-3", Host: "db1-3"},
+	}}}
+	target := resolved{Cluster: cluster, Selection: mysql.Selection{Master: &cluster.Spec.Members[1]}}
+	got := replicaEndpoint(target)
+	if got.Name != "db1-1" || got.Host != "db1-1" || got.Index != 1 || got.Port != 3306 {
+		t.Fatalf("first non-master %#v", got)
+	}
+	target.Selection.Master = &cluster.Spec.Members[0]
+	got = replicaEndpoint(target)
+	if got.Name != "db1-2" || got.Index != 2 {
+		t.Fatalf("replica after master %#v", got)
+	}
+	target.Selection.Master = nil
+	if replicaEndpoint(target) != (secrettpl.Endpoint{}) {
+		t.Fatal("replica was chosen without a master")
+	}
+	alone := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{Members: []mysqlv1alpha1.MySQLMember{
+		{Name: "db1-1", Host: "db1-1"},
+	}}}
+	only := resolved{Cluster: alone, Selection: mysql.Selection{Master: &alone.Spec.Members[0]}}
+	if replicaEndpoint(only) != (secrettpl.Endpoint{}) {
+		t.Fatal("the only member was used as a replica")
 	}
 }

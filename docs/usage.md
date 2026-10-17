@@ -272,6 +272,7 @@ spec:
       PASSWORD_PREVIOUS: "{{ .PreviousPassword }}"
       HOSTS: "{{ .Hosts | join \",\" }}"
       PRIMARY_HOST: "{{ .Master.Host }}"
+      REPLICA_HOST: "{{ .Replica.Host }}"
       DSN: "{{ .Username }}:{{ .Password }}@tcp({{ .Master.Host }}:{{ .Master.Port }})/payments_main"
     entries:
       - forEach: members
@@ -315,10 +316,11 @@ Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, an
 | `.Cluster` | string | `spec.cluster` |
 | `.Databases` | list of strings | Database names from `spec.grants`, in spec order |
 | `.Master` | object | Selected master. Empty when no master is selected |
+| `.Replica` | object | One member that is not the selected master: the first such member in `spec.members`. Empty when no master is selected, or when the master is the only member |
 | `.Members` | list of objects | Every member of the cluster, in `spec.members` order |
 | `.Item` | object | Current member inside `entries[].forEach`. Empty outside `entries` |
 
-`.Master`, `.Members`, and `.Item` have the same fields:
+`.Master`, `.Replica`, `.Members`, and `.Item` have the same fields:
 
 | Field | Type | Value |
 |---|---|---|
