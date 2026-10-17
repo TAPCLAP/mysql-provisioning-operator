@@ -64,3 +64,24 @@ func TestReplicaEndpoint(t *testing.T) {
 		t.Fatal("the only member was used as a replica")
 	}
 }
+
+func TestRecordPlacementListsEveryMemberOnMasterTarget(t *testing.T) {
+	cluster := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{Members: []mysqlv1alpha1.MySQLMember{
+		{Name: "db1-1", Host: "db1-1"},
+		{Name: "db1-2", Host: "db1-2"},
+	}}}
+	target := resolved{
+		Cluster:   cluster,
+		LogBin:    true,
+		Selection: mysql.Selection{Master: &cluster.Spec.Members[0]},
+	}
+	members, master := recordPlacement(target, []string{"db1-1"})
+	if master == nil || master.Name != "db1-1" || len(members) != 2 || members[0].Name != "db1-1" || members[1].Name != "db1-2" || members[1].Port != 3306 {
+		t.Fatalf("master target members=%#v master=%#v", members, master)
+	}
+	target.LogBin = false
+	members, _ = recordPlacement(target, []string{"db1-1"})
+	if len(members) != 1 || members[0].Name != "db1-1" {
+		t.Fatalf("all target %#v", members)
+	}
+}

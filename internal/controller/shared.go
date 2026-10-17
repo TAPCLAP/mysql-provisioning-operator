@@ -225,7 +225,11 @@ func setCondition(conditions *[]metav1.Condition, generation int64, condType str
 }
 
 func recordPlacement(target resolved, names []string) ([]mysqlv1alpha1.EndpointStatus, *mysqlv1alpha1.EndpointStatus) {
-	return appliedEndpoints(target.Cluster, names), selectedMaster(target)
+	members := appliedEndpoints(target.Cluster, names)
+	if target.LogBin {
+		members = clusterEndpoints(target.Cluster)
+	}
+	return members, selectedMaster(target)
 }
 
 func appliedEndpoints(cluster *mysqlv1alpha1.MySQLCluster, names []string) []mysqlv1alpha1.EndpointStatus {
@@ -243,6 +247,17 @@ func appliedEndpoints(cluster *mysqlv1alpha1.MySQLCluster, names []string) []mys
 			out = append(out, mysqlv1alpha1.EndpointStatus{Name: name})
 			continue
 		}
+		out = append(out, endpointStatus(member))
+	}
+	return out
+}
+
+func clusterEndpoints(cluster *mysqlv1alpha1.MySQLCluster) []mysqlv1alpha1.EndpointStatus {
+	if cluster == nil || len(cluster.Spec.Members) == 0 {
+		return nil
+	}
+	out := make([]mysqlv1alpha1.EndpointStatus, 0, len(cluster.Spec.Members))
+	for _, member := range cluster.Spec.Members {
 		out = append(out, endpointStatus(member))
 	}
 	return out

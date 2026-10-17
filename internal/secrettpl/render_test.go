@@ -2,6 +2,11 @@ package secrettpl
 
 import "testing"
 
+const (
+	masterHost  = "db1-1.internal"
+	replicaHost = "db1-2.internal"
+)
+
 func TestRenderTemplatesAndEntries(t *testing.T) {
 	out, err := Render(map[string]string{
 		"USERNAME": "{{ .Username }}",
@@ -20,17 +25,17 @@ func TestRenderTemplatesAndEntries(t *testing.T) {
 		Username: "payments_app",
 		Password: "secret",
 		Hosts:    []string{"%"},
-		Master:   Endpoint{Name: "db1-1", Host: "db1-1.internal", Port: 3306},
-		Replica:  Endpoint{Name: "db1-2", Host: "db1-2.internal", Port: 3306, Index: 2},
-		Members:  []Endpoint{{Name: "db1-1", Host: "db1-1.internal", Port: 3306, Index: 1}, {Name: "db1-2", Host: "db1-2.internal", Port: 3306, Index: 2}},
+		Master:   Endpoint{Name: "db1-1", Host: masterHost, Port: 3306},
+		Replica:  Endpoint{Name: "db1-2", Host: replicaHost, Port: 3306, Index: 2},
+		Members:  []Endpoint{{Name: "db1-1", Host: masterHost, Port: 3306, Index: 1}, {Name: "db1-2", Host: replicaHost, Port: 3306, Index: 2}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out["USERNAME"] != "payments_app" || out["DB1-1_HOST"] != "db1-1.internal" || out["DB1-2_HOST"] != "db1-2.internal" || out["MEMBER_1_HOST"] != "db1-1.internal" || out["MEMBER_2_HOST"] != "db1-2.internal" {
+	if out["USERNAME"] != "payments_app" || out["DB1-1_HOST"] != masterHost || out["DB1-2_HOST"] != replicaHost || out["MEMBER_1_HOST"] != masterHost || out["MEMBER_2_HOST"] != replicaHost {
 		t.Fatalf("%#v", out)
 	}
-	if out["HOSTS"] != "%" || out["DSN"] != "payments_app:secret@tcp(db1-1.internal:3306)/app" || out["REPLICA"] != "db1-2.internal" {
+	if out["HOSTS"] != "%" || out["DSN"] != "payments_app:secret@tcp("+masterHost+":3306)/app" || out["REPLICA"] != replicaHost {
 		t.Fatalf("%#v", out)
 	}
 }

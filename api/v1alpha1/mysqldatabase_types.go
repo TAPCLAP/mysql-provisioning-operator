@@ -61,7 +61,8 @@ type MySQLDatabaseStatus struct {
 	// +optional
 	AppliedOn []string `json:"appliedOn,omitempty"`
 
-	// members are the members where the schema was applied, with host and port.
+	// members lists cluster members with host and port.
+	// Target Master includes every cluster member. Target All includes the members where the schema was applied.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
