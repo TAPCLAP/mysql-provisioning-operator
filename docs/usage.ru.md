@@ -235,7 +235,7 @@ spec:
 
 `name` — идентификатор MySQL не длиннее 64 символов, поле неизменяемое. `characterSet` и `collation` тоже неизменяемые и применяются только в `CREATE DATABASE`. По умолчанию это `utf8mb3` и `utf8mb3_general_ci`. Если схема уже есть и её charset или collation отличаются, оператор её не меняет и ставит `CharacterSetDrift`. `ALTER DATABASE` нет.
 
-`status.appliedOn` — members, где схема уже есть.
+`status.appliedOn` — имена members, где схема уже есть. `kubectl get` показывает их в колонке Members. `status.members` повторяет их с host и port. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, оба поля пустые.
 
 Удаление объекта, namespace или самого оператора схему не удаляет. Финалайзера и флага «всё же удалить» нет. Объект удаляется сразу, оператор пишет событие `DatabaseRetained`. Повторное создание объекта подхватывает существующую схему.
 
@@ -298,6 +298,8 @@ usernameSuffix:
 Права сверяются с `SHOW GRANTS`: недостающие выдаются, лишние снимаются. `USAGE` на `*.*` игнорируется. Grant ждёт, пока указанная база появится.
 
 `maxUserConnections` и `maxQueriesPerHour` — необязательные ограничения учётки.
+
+`status.appliedOn` — имена members, куда учётка применена. `kubectl get` показывает их в колонке Members. `status.members` повторяет их с host и port. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, оба поля пустые.
 
 ### Шаблон Secret
 

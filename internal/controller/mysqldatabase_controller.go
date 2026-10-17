@@ -69,6 +69,7 @@ func (r *MySQLDatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	applied, drift, err := r.ensure(ctx, &database, target)
 	database.Status.AppliedOn = applied
+	database.Status.Members, database.Status.Master = recordPlacement(target, applied)
 	if len(drift) > 0 {
 		setCondition(&database.Status.Conditions, database.Generation, mysqlv1alpha1.ConditionCharacterSetDrift, metav1.ConditionTrue, "Drift", "character set differs on "+strings.Join(drift, ","))
 	} else {

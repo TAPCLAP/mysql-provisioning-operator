@@ -61,6 +61,16 @@ type MySQLDatabaseStatus struct {
 	// +optional
 	AppliedOn []string `json:"appliedOn,omitempty"`
 
+	// members are the members where the schema was applied, with host and port.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Members []EndpointStatus `json:"members,omitempty"`
+
+	// master is the selected primary at the last reconcile.
+	// +optional
+	Master *EndpointStatus `json:"master,omitempty"`
+
 	// conditions represent the current state of the MySQLDatabase resource.
 	// +listType=map
 	// +listMapKey=type
@@ -73,6 +83,8 @@ type MySQLDatabaseStatus struct {
 // +kubebuilder:resource:scope=Namespaced,shortName=mdb
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.cluster`
 // +kubebuilder:printcolumn:name="Schema",type=string,JSONPath=`.spec.name`
+// +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
+// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.appliedOn[*]`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 
 // MySQLDatabase is the Schema for the mysqldatabases API.

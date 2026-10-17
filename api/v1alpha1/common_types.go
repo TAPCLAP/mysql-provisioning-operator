@@ -101,6 +101,20 @@ type MySQLMember struct {
 	Master bool `json:"master,omitempty"`
 }
 
+// EndpointStatus is a member address recorded on a database or user.
+type EndpointStatus struct {
+	// name is the member name.
+	Name string `json:"name"`
+
+	// host is the member host.
+	// +optional
+	Host string `json:"host,omitempty"`
+
+	// port is the member port. 3306 when the cluster omits it.
+	// +optional
+	Port int32 `json:"port,omitempty"`
+}
+
 // AddressPort returns the configured port or 3306.
 func (m MySQLMember) AddressPort() int32 {
 	if m.Port == 0 {

@@ -224,6 +224,46 @@ func setCondition(conditions *[]metav1.Condition, generation int64, condType str
 	})
 }
 
+func recordPlacement(target resolved, names []string) ([]mysqlv1alpha1.EndpointStatus, *mysqlv1alpha1.EndpointStatus) {
+	return appliedEndpoints(target.Cluster, names), selectedMaster(target)
+}
+
+func appliedEndpoints(cluster *mysqlv1alpha1.MySQLCluster, names []string) []mysqlv1alpha1.EndpointStatus {
+	if cluster == nil || len(names) == 0 {
+		return nil
+	}
+	byName := make(map[string]mysqlv1alpha1.MySQLMember, len(cluster.Spec.Members))
+	for _, member := range cluster.Spec.Members {
+		byName[member.Name] = member
+	}
+	out := make([]mysqlv1alpha1.EndpointStatus, 0, len(names))
+	for _, name := range names {
+		member, ok := byName[name]
+		if !ok {
+			out = append(out, mysqlv1alpha1.EndpointStatus{Name: name})
+			continue
+		}
+		out = append(out, endpointStatus(member))
+	}
+	return out
+}
+
+func selectedMaster(target resolved) *mysqlv1alpha1.EndpointStatus {
+	if target.Selection.Master == nil {
+		return nil
+	}
+	status := endpointStatus(*target.Selection.Master)
+	return &status
+}
+
+func endpointStatus(member mysqlv1alpha1.MySQLMember) mysqlv1alpha1.EndpointStatus {
+	return mysqlv1alpha1.EndpointStatus{
+		Name: member.Name,
+		Host: member.Host,
+		Port: member.AddressPort(),
+	}
+}
+
 func applyMembers(ctx context.Context, opener mysql.Opener, target resolved, fn func(context.Context, mysqlv1alpha1.MySQLMember, mysql.DB) error) ([]string, error) {
 	var applied []string
 	var errs []error

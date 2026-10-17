@@ -235,7 +235,7 @@ spec:
 
 `name` is a MySQL identifier of at most 64 characters and is immutable. `characterSet` and `collation` are immutable and are applied only in `CREATE DATABASE`. The defaults are `utf8mb3` and `utf8mb3_general_ci`. If the schema already exists with a different charset or collation, the operator leaves it unchanged and sets `CharacterSetDrift`. There is no `ALTER DATABASE`.
 
-`status.appliedOn` lists members where the schema is present.
+`status.appliedOn` lists member names where the schema is present. `kubectl get` shows those names in the Members column. `status.members` repeats them with host and port. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. Both are empty when no master is selected.
 
 Deleting the object, the namespace, or the operator does not drop the schema. There is no finalizer and no flag that deletes it. The object can be deleted immediately, and the operator emits `DatabaseRetained`. Creating the object again adopts the existing schema.
 
@@ -298,6 +298,8 @@ usernameSuffix:
 Grants are reconciled from `SHOW GRANTS`: missing privileges are granted and extra ones are revoked. `USAGE` on `*.*` is ignored. A grant waits until that database exists.
 
 `maxUserConnections` and `maxQueriesPerHour` are optional limits on the account.
+
+`status.appliedOn` lists member names where the account was applied. `kubectl get` shows those names in the Members column. `status.members` repeats them with host and port. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. Both are empty when no master is selected.
 
 ### Secret template
 

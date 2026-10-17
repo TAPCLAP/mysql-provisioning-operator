@@ -97,6 +97,10 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(script.Contains("CREATE DATABASE")).To(BeTrue())
 		Expect(script.Contains("DROP DATABASE")).To(BeFalse())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: database.Name, Namespace: database.Namespace}, database)).To(Succeed())
+		Expect(database.Status.AppliedOn).To(Equal([]string{"db1-1"}))
+		Expect(database.Status.Members).To(Equal([]mysqlv1alpha1.EndpointStatus{{Name: "db1-1", Host: "db1-1", Port: 3306}}))
+		Expect(database.Status.Master).To(Equal(&mysqlv1alpha1.EndpointStatus{Name: "db1-1", Host: "db1-1", Port: 3306}))
 
 		user := &mysqlv1alpha1.MySQLUser{
 			ObjectMeta: metav1.ObjectMeta{Name: "payments-app", Namespace: "default"},
@@ -117,6 +121,10 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(script.Contains("CREATE USER")).To(BeTrue())
 		Expect(script.Contains("REQUIRE SSL")).To(BeTrue())
 		Expect(script.Contains("DROP DATABASE")).To(BeFalse())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: user.Name, Namespace: user.Namespace}, user)).To(Succeed())
+		Expect(user.Status.AppliedOn).To(Equal([]string{"db1-1"}))
+		Expect(user.Status.Members).To(Equal([]mysqlv1alpha1.EndpointStatus{{Name: "db1-1", Host: "db1-1", Port: 3306}}))
+		Expect(user.Status.Master).To(Equal(&mysqlv1alpha1.EndpointStatus{Name: "db1-1", Host: "db1-1", Port: 3306}))
 
 		var secret corev1.Secret
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "payments-app", Namespace: "default"}, &secret)).To(Succeed())

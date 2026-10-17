@@ -188,6 +188,16 @@ type MySQLUserStatus struct {
 	// +optional
 	AppliedOn []string `json:"appliedOn,omitempty"`
 
+	// members are the members where the account was applied, with host and port.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Members []EndpointStatus `json:"members,omitempty"`
+
+	// master is the selected primary at the last reconcile.
+	// +optional
+	Master *EndpointStatus `json:"master,omitempty"`
+
 	// managedHosts are the hosts the operator last created, used to drop removed hosts.
 	// +optional
 	ManagedHosts []string `json:"managedHosts,omitempty"`
@@ -209,6 +219,8 @@ type MySQLUserStatus struct {
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.cluster`
 // +kubebuilder:printcolumn:name="User",type=string,JSONPath=`.spec.username`
 // +kubebuilder:printcolumn:name="Secret",type=string,JSONPath=`.spec.secret.name`
+// +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
+// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.appliedOn[*]`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 
 // MySQLUser is the Schema for the mysqlusers API.

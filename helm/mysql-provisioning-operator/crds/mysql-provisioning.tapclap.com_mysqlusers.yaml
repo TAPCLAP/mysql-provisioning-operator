@@ -26,6 +26,12 @@ spec:
     - jsonPath: .spec.secret.name
       name: Secret
       type: string
+    - jsonPath: .status.master.name
+      name: Master
+      type: string
+    - jsonPath: .status.appliedOn[*]
+      name: Members
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -300,6 +306,48 @@ spec:
                 items:
                   type: string
                 type: array
+              master:
+                description: master is the selected primary at the last reconcile.
+                properties:
+                  host:
+                    description: host is the member host.
+                    type: string
+                  name:
+                    description: name is the member name.
+                    type: string
+                  port:
+                    description: port is the member port. 3306 when the cluster omits
+                      it.
+                    format: int32
+                    type: integer
+                required:
+                - name
+                type: object
+              members:
+                description: members are the members where the account was applied,
+                  with host and port.
+                items:
+                  description: EndpointStatus is a member address recorded on a database
+                    or user.
+                  properties:
+                    host:
+                      description: host is the member host.
+                      type: string
+                    name:
+                      description: name is the member name.
+                      type: string
+                    port:
+                      description: port is the member port. 3306 when the cluster
+                        omits it.
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               password:
                 description: password holds rotation bookkeeping.
                 properties:
