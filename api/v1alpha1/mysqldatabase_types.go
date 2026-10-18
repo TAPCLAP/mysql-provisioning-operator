@@ -68,6 +68,11 @@ type MySQLDatabaseStatus struct {
 	// +listMapKey=name
 	Members []EndpointStatus `json:"members,omitempty"`
 
+	// memberNames is the comma-separated member names from members.
+	// kubectl prints this string. A JSONPath that matches several names stays empty.
+	// +optional
+	MemberNames string `json:"memberNames,omitempty"`
+
 	// master is the selected primary at the last reconcile.
 	// +optional
 	Master *EndpointStatus `json:"master,omitempty"`
@@ -85,7 +90,7 @@ type MySQLDatabaseStatus struct {
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.cluster`
 // +kubebuilder:printcolumn:name="Schema",type=string,JSONPath=`.spec.name`
 // +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
-// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.members[*].name`
+// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.memberNames`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 
 // MySQLDatabase is the Schema for the mysqldatabases API.

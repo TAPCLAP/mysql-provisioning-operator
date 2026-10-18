@@ -327,7 +327,7 @@ spec:
 
 `name` — идентификатор MySQL не длиннее 64 символов, поле неизменяемое. `characterSet` и `collation` тоже неизменяемые и применяются только в `CREATE DATABASE`. По умолчанию это `utf8mb3` и `utf8mb3_general_ci`. Если схема уже есть и её charset или collation отличаются, оператор её не меняет и ставит `CharacterSetDrift`. `ALTER DATABASE` нет.
 
-`status.appliedOn` — имена members, где схема уже есть. При `target: Master` в этом списке мастер: оператор пишет туда, а на реплику схема приезжает репликацией. `status.members` содержит каждый member кластера с host и port, и `kubectl get` показывает эти имена в колонке Members. При `target: All` там только members, куда схема применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
+`status.appliedOn` — имена members, где схема уже есть. При `target: Master` в этом списке мастер: оператор пишет туда, а на реплику схема приезжает репликацией. `status.members` содержит каждый member кластера с host и port. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда схема применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
 
 Удаление объекта, namespace или самого оператора схему не удаляет. Финалайзера и флага «всё же удалить» нет. Объект удаляется сразу, оператор пишет событие `DatabaseRetained`. Повторное создание объекта подхватывает существующую схему.
 
@@ -392,7 +392,7 @@ usernameSuffix:
 
 `maxUserConnections` и `maxQueriesPerHour` — необязательные ограничения учётки.
 
-`status.appliedOn` — имена members, куда учётка применена. При `target: Master` в этом списке мастер. `status.members` содержит каждый member кластера с host и port, и `kubectl get` показывает эти имена в колонке Members. При `target: All` там только members, куда учётка применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
+`status.appliedOn` — имена members, куда учётка применена. При `target: Master` в этом списке мастер. `status.members` содержит каждый member кластера с host и port. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда учётка применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
 
 ### Шаблон Secret
 

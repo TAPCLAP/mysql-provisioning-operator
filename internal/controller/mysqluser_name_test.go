@@ -82,7 +82,7 @@ func TestRecordPlacementListsEveryMemberOnMasterTarget(t *testing.T) {
 		Selection: mysql.Selection{Master: &cluster.Spec.Members[0]},
 	}
 	members, master := recordPlacement(target, []string{member1})
-	if master == nil || master.Name != member1 || len(members) != 2 || members[0].Name != member1 || members[1].Name != member2 || members[1].Port != 3306 {
+	if master == nil || master.Name != member1 || len(members) != 2 || members[0].Name != member1 || members[1].Name != member2 || members[1].Port != 3306 || memberNameList(members) != member1+","+member2 {
 		t.Fatalf("master target members=%#v master=%#v", members, master)
 	}
 	target.LogBin = false

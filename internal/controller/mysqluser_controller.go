@@ -95,6 +95,7 @@ func (r *MySQLUserReconciler) reconcile(ctx context.Context, user *mysqlv1alpha1
 	r.noteRotation(user, plan)
 	err = r.applyAccounts(ctx, user, target, plan)
 	user.Status.Members, user.Status.Master = recordPlacement(target, user.Status.AppliedOn)
+	user.Status.MemberNames = memberNameList(user.Status.Members)
 	if err != nil {
 		setCondition(&user.Status.Conditions, user.Generation, mysqlv1alpha1.ConditionGrantsDrift, metav1.ConditionTrue, "ApplyFailed", err.Error())
 		return r.fail(ctx, original, user, err)

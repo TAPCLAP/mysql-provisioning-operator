@@ -26,7 +26,7 @@ spec:
     - jsonPath: .status.master.name
       name: Master
       type: string
-    - jsonPath: .status.members[*].name
+    - jsonPath: .status.memberNames
       name: Members
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
@@ -185,6 +185,11 @@ spec:
                 required:
                 - name
                 type: object
+              memberNames:
+                description: |-
+                  memberNames is the comma-separated member names from members.
+                  kubectl prints this string. A JSONPath that matches several names stays empty.
+                type: string
               members:
                 description: |-
                   members lists cluster members with host and port.

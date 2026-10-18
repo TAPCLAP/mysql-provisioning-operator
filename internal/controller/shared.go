@@ -232,6 +232,17 @@ func recordPlacement(target resolved, names []string) ([]mysqlv1alpha1.EndpointS
 	return members, selectedMaster(target)
 }
 
+func memberNameList(members []mysqlv1alpha1.EndpointStatus) string {
+	names := make([]string, 0, len(members))
+	for _, member := range members {
+		if member.Name == "" {
+			continue
+		}
+		names = append(names, member.Name)
+	}
+	return strings.Join(names, ",")
+}
+
 func appliedEndpoints(cluster *mysqlv1alpha1.MySQLCluster, names []string) []mysqlv1alpha1.EndpointStatus {
 	if cluster == nil || len(names) == 0 {
 		return nil

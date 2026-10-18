@@ -100,6 +100,7 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: database.Name, Namespace: database.Namespace}, database)).To(Succeed())
 		Expect(database.Status.AppliedOn).To(Equal([]string{"db1-1"}))
 		Expect(database.Status.Members).To(Equal([]mysqlv1alpha1.EndpointStatus{{Name: "db1-1", Host: "db1-1", Port: 3306}}))
+		Expect(database.Status.MemberNames).To(Equal("db1-1"))
 		Expect(database.Status.Master).To(Equal(&mysqlv1alpha1.EndpointStatus{Name: "db1-1", Host: "db1-1", Port: 3306}))
 
 		user := &mysqlv1alpha1.MySQLUser{
@@ -124,6 +125,7 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: user.Name, Namespace: user.Namespace}, user)).To(Succeed())
 		Expect(user.Status.AppliedOn).To(Equal([]string{"db1-1"}))
 		Expect(user.Status.Members).To(Equal([]mysqlv1alpha1.EndpointStatus{{Name: "db1-1", Host: "db1-1", Port: 3306}}))
+		Expect(user.Status.MemberNames).To(Equal("db1-1"))
 		Expect(user.Status.Master).To(Equal(&mysqlv1alpha1.EndpointStatus{Name: "db1-1", Host: "db1-1", Port: 3306}))
 
 		var secret corev1.Secret
