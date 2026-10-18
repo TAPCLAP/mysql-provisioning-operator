@@ -85,7 +85,7 @@ type MySQLDatabaseStatus struct {
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.cluster`
 // +kubebuilder:printcolumn:name="Schema",type=string,JSONPath=`.spec.name`
 // +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
-// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.appliedOn[*]`
+// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.members[*].name`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 
 // MySQLDatabase is the Schema for the mysqldatabases API.

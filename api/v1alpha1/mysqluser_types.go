@@ -221,7 +221,7 @@ type MySQLUserStatus struct {
 // +kubebuilder:printcolumn:name="User",type=string,JSONPath=`.spec.username`
 // +kubebuilder:printcolumn:name="Secret",type=string,JSONPath=`.spec.secret.name`
 // +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
-// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.appliedOn[*]`
+// +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.members[*].name`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 
 // MySQLUser is the Schema for the mysqlusers API.

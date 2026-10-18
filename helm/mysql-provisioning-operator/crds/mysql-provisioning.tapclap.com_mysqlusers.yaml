@@ -29,7 +29,7 @@ spec:
     - jsonPath: .status.master.name
       name: Master
       type: string
-    - jsonPath: .status.appliedOn[*]
+    - jsonPath: .status.members[*].name
       name: Members
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status

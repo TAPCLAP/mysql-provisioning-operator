@@ -24,11 +24,11 @@ cert-manager must be installed before the chart. The webhook `failurePolicy` is 
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.8
+  --version 0.0.9
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.8 \
+  --version 0.0.9 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -235,7 +235,7 @@ spec:
 
 `name` is a MySQL identifier of at most 64 characters and is immutable. `characterSet` and `collation` are immutable and are applied only in `CREATE DATABASE`. The defaults are `utf8mb3` and `utf8mb3_general_ci`. If the schema already exists with a different charset or collation, the operator leaves it unchanged and sets `CharacterSetDrift`. There is no `ALTER DATABASE`.
 
-`status.appliedOn` lists member names where the schema is present. `kubectl get` shows those names in the Members column. With `target: Master` that list is the master, because the operator writes there and replication carries the schema. `status.members` still lists every cluster member with host and port. With `target: All` it lists only the members where the schema was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
+`status.appliedOn` lists member names where the schema is present. With `target: Master` that list is the master, because the operator writes there and replication carries the schema. `status.members` lists every cluster member with host and port, and `kubectl get` shows those names in the Members column. With `target: All` it lists only the members where the schema was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
 
 Deleting the object, the namespace, or the operator does not drop the schema. There is no finalizer and no flag that deletes it. The object can be deleted immediately, and the operator emits `DatabaseRetained`. Creating the object again adopts the existing schema.
 
@@ -300,7 +300,7 @@ Grants are reconciled from `SHOW GRANTS`: missing privileges are granted and ext
 
 `maxUserConnections` and `maxQueriesPerHour` are optional limits on the account.
 
-`status.appliedOn` lists member names where the account was applied. `kubectl get` shows those names in the Members column. With `target: Master` that list is the master. `status.members` still lists every cluster member with host and port. With `target: All` it lists only the members where the account was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
+`status.appliedOn` lists member names where the account was applied. With `target: Master` that list is the master. `status.members` lists every cluster member with host and port, and `kubectl get` shows those names in the Members column. With `target: All` it lists only the members where the account was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
 
 ### Secret template
 
