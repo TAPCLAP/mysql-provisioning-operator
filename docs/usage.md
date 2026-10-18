@@ -15,6 +15,98 @@ The operator reconciles four resources. Platform objects live in the operator na
 
 A tenant refers to a cluster by name only and never sees the admin Secret.
 
+## Example
+
+This is the smallest path that creates a schema, an account, and a Secret. The sections below explain each field.
+
+The admin Secret and the cluster live in the operator namespace. `master.mode: Detected` selects the member that is writable and has no replication source. `privilegeReplication: Replicated` means `CREATE DATABASE` and `CREATE USER` run on that master and reach `db1-2` through the binlog.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db1-admin
+  namespace: mysql-provisioning-system
+stringData:
+  username: operator
+  password: replace-me
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLCluster
+metadata:
+  name: db1
+  namespace: mysql-provisioning-system
+spec:
+  members:
+    - name: db1-1
+      host: db1-1.internal
+    - name: db1-2
+      host: db1-2.internal
+  credentialsSecret:
+    name: db1-admin
+  privilegeReplication: Replicated
+  defaultTarget: Master
+  master:
+    mode: Detected
+```
+
+`MySQLTenant` is also created in the operator namespace. It allows the `payments` namespace to create databases and users named `payments_*` on cluster `db1`, with the privileges listed below, and only with `target: Master`.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLTenant
+metadata:
+  name: payments
+  namespace: mysql-provisioning-system
+spec:
+  namespaces: ["payments"]
+  access:
+    - cluster: db1
+      databases:
+        patterns: ["payments_*"]
+      users:
+        patterns: ["payments_*"]
+      hosts: ["%"]
+      targets: ["Master"]
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"]
+```
+
+The tenant creates the schema and the account in its own namespace. The cluster is named, not given credentials. The operator generates the password and renders `payments-app`. `.Master` is the selected primary. `.Replica` is the first member in `spec.members` that is not that primary. If `db1-1` is the master, `.Replica` is `db1-2`.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLDatabase
+metadata:
+  name: payments-main
+  namespace: payments
+spec:
+  cluster: db1
+  name: payments_main
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLUser
+metadata:
+  name: payments-app
+  namespace: payments
+spec:
+  cluster: db1
+  username: payments_app
+  authPlugin: caching_sha2_password
+  requireTLS: true
+  grants:
+    - database: payments_main
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"]
+  secret:
+    name: payments-app
+    data:
+      USERNAME: "{{ .Username }}"
+      PASSWORD: "{{ .Password }}"
+      PRIMARY_HOST: "{{ .Master.Host }}"
+      REPLICA_HOST: "{{ .Replica.Host }}"
+```
+
+Deleting `MySQLDatabase` leaves `payments_main` in MySQL. Deleting `MySQLUser` runs `DROP USER` and deletes the Secret.
+
 ## Install
 
 cert-manager must be installed before the chart. The webhook `failurePolicy` is `Fail`, so a missing certificate blocks creates and updates of these resources.

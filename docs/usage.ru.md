@@ -15,6 +15,98 @@
 
 Тенант ссылается на кластер только по имени и не видит админский Secret.
 
+## Пример
+
+Это самый короткий путь, который создаёт схему, учётку и Secret. Поля по отдельности разобраны в разделах ниже.
+
+Админский Secret и кластер лежат в namespace оператора. `master.mode: Detected` выбирает member, который доступен на запись и у которого не настроена репликация. `privilegeReplication: Replicated` значит, что `CREATE DATABASE` и `CREATE USER` выполняются на этом мастере и доезжают до `db1-2` через binlog.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db1-admin
+  namespace: mysql-provisioning-system
+stringData:
+  username: operator
+  password: replace-me
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLCluster
+metadata:
+  name: db1
+  namespace: mysql-provisioning-system
+spec:
+  members:
+    - name: db1-1
+      host: db1-1.internal
+    - name: db1-2
+      host: db1-2.internal
+  credentialsSecret:
+    name: db1-admin
+  privilegeReplication: Replicated
+  defaultTarget: Master
+  master:
+    mode: Detected
+```
+
+`MySQLTenant` тоже создаётся в namespace оператора. Он разрешает namespace `payments` создавать на кластере `db1` базы и пользователей с именами `payments_*`, с перечисленными привилегиями и только с `target: Master`.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLTenant
+metadata:
+  name: payments
+  namespace: mysql-provisioning-system
+spec:
+  namespaces: ["payments"]
+  access:
+    - cluster: db1
+      databases:
+        patterns: ["payments_*"]
+      users:
+        patterns: ["payments_*"]
+      hosts: ["%"]
+      targets: ["Master"]
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"]
+```
+
+Тенант создаёт схему и учётку в своём namespace. Кластер указан по имени, без пароля. Оператор генерирует пароль и заполняет Secret `payments-app`. `.Master` — выбранный мастер. `.Replica` — первый member в `spec.members`, который этим мастером не является. Если мастер — `db1-1`, то `.Replica` — `db1-2`.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLDatabase
+metadata:
+  name: payments-main
+  namespace: payments
+spec:
+  cluster: db1
+  name: payments_main
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLUser
+metadata:
+  name: payments-app
+  namespace: payments
+spec:
+  cluster: db1
+  username: payments_app
+  authPlugin: caching_sha2_password
+  requireTLS: true
+  grants:
+    - database: payments_main
+      privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"]
+  secret:
+    name: payments-app
+    data:
+      USERNAME: "{{ .Username }}"
+      PASSWORD: "{{ .Password }}"
+      PRIMARY_HOST: "{{ .Master.Host }}"
+      REPLICA_HOST: "{{ .Replica.Host }}"
+```
+
+Удаление `MySQLDatabase` оставляет `payments_main` в MySQL. Удаление `MySQLUser` выполняет `DROP USER` и удаляет Secret.
+
 ## Установка
 
 cert-manager должен стоять до чарта. У webhook `failurePolicy: Fail`, поэтому без сертификата создание и изменение этих объектов блокируется.
