@@ -2,8 +2,8 @@ apiVersion: v2
 name: mysql-provisioning-operator
 description: Provision MySQL databases, users, and Secrets on existing MySQL clusters. This chart includes the CRDs, the controller, and the validating webhook.
 type: application
-version: 0.0.9
-appVersion: "v0.0.9"
+version: 0.0.10
+appVersion: "v0.0.10"
 kubeVersion: ">=1.30.0-0"
 keywords:
   - mysql
