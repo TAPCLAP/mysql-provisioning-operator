@@ -124,6 +124,7 @@ type MySQLClusterStatus struct {
 // +kubebuilder:resource:scope=Namespaced,shortName=mcluster
 // +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // MySQLCluster is the Schema for the mysqlclusters API.
 type MySQLCluster struct {
