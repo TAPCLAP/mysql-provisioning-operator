@@ -195,6 +195,17 @@ tls:
 
 `defaultTarget` is used when a database or user omits `spec.target`. The default is `Master`.
 
+Each member may set `attributes`, a map of strings. The operator copies it into secret templates and into `status.members` and `status.master` on `MySQLDatabase` and `MySQLUser`. A key matches `^[A-Za-z][A-Za-z0-9]{0,63}$`, so a template can read it as `{{ .Item.Attributes.publicHost }}`. A value is at most 253 characters. A member has at most 16 attributes.
+
+```yaml
+members:
+  - name: db1-1
+    host: db1-1.internal
+    attributes:
+      publicHost: db.example.com
+      zone: a
+```
+
 Watch the cluster until it is ready:
 
 ```bash
@@ -327,7 +338,7 @@ spec:
 
 `name` is a MySQL identifier of at most 64 characters and is immutable. `characterSet` and `collation` are immutable and are applied only in `CREATE DATABASE`. The defaults are `utf8mb3` and `utf8mb3_general_ci`. If the schema already exists with a different charset or collation, the operator leaves it unchanged and sets `CharacterSetDrift`. There is no `ALTER DATABASE`.
 
-`status.appliedOn` lists member names where the schema is present. With `target: Master` that list is the master, because the operator writes there and replication carries the schema. `status.members` lists every cluster member with host and port. `status.memberNames` is those names joined with commas, and `kubectl get` prints that string in the Members column. With `target: All` both lists include only the members where the schema was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
+`status.appliedOn` lists member names where the schema is present. With `target: Master` that list is the master, because the operator writes there and replication carries the schema. `status.members` lists every cluster member with host, port, and attributes. `status.memberNames` is those names joined with commas, and `kubectl get` prints that string in the Members column. With `target: All` both lists include only the members where the schema was applied. `status.master` is the selected primary, with name, host, port, and attributes. The Master column shows its name. It is empty when no master is selected.
 
 Deleting the object, the namespace, or the operator does not drop the schema. There is no finalizer and no flag that deletes it. The object can be deleted immediately, and the operator emits `DatabaseRetained`. Creating the object again adopts the existing schema.
 
@@ -392,7 +403,7 @@ Grants are reconciled from `SHOW GRANTS`: missing privileges are granted and ext
 
 `maxUserConnections` and `maxQueriesPerHour` are optional limits on the account.
 
-`status.appliedOn` lists member names where the account was applied. With `target: Master` that list is the master. `status.members` lists every cluster member with host and port. `status.memberNames` is those names joined with commas, and `kubectl get` prints that string in the Members column. With `target: All` both lists include only the members where the account was applied. `status.master` is the selected primary, with name, host, and port. The Master column shows its name. It is empty when no master is selected.
+`status.appliedOn` lists member names where the account was applied. With `target: Master` that list is the master. `status.members` lists every cluster member with host, port, and attributes. `status.memberNames` is those names joined with commas, and `kubectl get` prints that string in the Members column. With `target: All` both lists include only the members where the account was applied. `status.master` is the selected primary, with name, host, port, and attributes. The Master column shows its name. It is empty when no master is selected.
 
 ### Secret template
 
@@ -420,6 +431,7 @@ Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, an
 | `.Host` | string | Member host |
 | `.Port` | number | Member port. `3306` when the cluster omits it |
 | `.Index` | number | 1-based position in `spec.members` |
+| `.Attributes` | map of strings | `MySQLCluster.spec.members[].attributes`. Nil when the member sets none. A missing key fails the render |
 
 `PASSWORD` and `PASSWORD_PREVIOUS` are reserved. The operator sets them after rendering, so a template cannot replace the password with something else. `entries` repeats a key and value for each cluster member. `forEach` supports only `members`, and `.Item` is that member. Rendered keys must match `[A-Za-z0-9_.-]+`. An empty rendered value is omitted.
 

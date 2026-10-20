@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,24 @@ import (
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
 )
+
+func TestClusterAttributes(t *testing.T) {
+	ok := baseCluster()
+	ok.Spec.Members[0].Attributes = map[string]string{"publicHost": "db.example.com"}
+	if err := Cluster(ok); err != nil {
+		t.Fatal(err)
+	}
+	badKey := baseCluster()
+	badKey.Spec.Members[0].Attributes = map[string]string{"public-host": "db.example.com"}
+	if err := Cluster(badKey); err == nil {
+		t.Fatal("attribute key with a hyphen was accepted")
+	}
+	tooLong := baseCluster()
+	tooLong.Spec.Members[0].Attributes = map[string]string{"publicHost": strings.Repeat("a", 254)}
+	if err := Cluster(tooLong); err == nil {
+		t.Fatal("attribute value longer than 253 characters was accepted")
+	}
+}
 
 func TestClusterExplicitAndDetected(t *testing.T) {
 	explicit := baseCluster()

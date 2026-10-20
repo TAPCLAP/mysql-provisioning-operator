@@ -40,6 +40,25 @@ func TestRenderTemplatesAndEntries(t *testing.T) {
 	}
 }
 
+func TestRenderAttributes(t *testing.T) {
+	out, err := Render(map[string]string{
+		"PUBLIC": "{{ .Master.Attributes.publicHost }}",
+	}, []Entry{{
+		ForEach: "members",
+		Key:     "{{ .Item.Name | upper }}_ZONE",
+		Value:   "{{ .Item.Attributes.zone }}",
+	}}, Data{
+		Master:  Endpoint{Name: "db1-1", Host: masterHost, Attributes: map[string]string{"publicHost": "db.example.com"}},
+		Members: []Endpoint{{Name: "db1-1", Attributes: map[string]string{"zone": "a"}}, {Name: "db1-2", Attributes: map[string]string{"zone": "b"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["PUBLIC"] != "db.example.com" || out["DB1-1_ZONE"] != "a" || out["DB1-2_ZONE"] != "b" {
+		t.Fatalf("%#v", out)
+	}
+}
+
 func TestRenderRejectsEnv(t *testing.T) {
 	if _, err := Render(map[string]string{"X": `{{ env "HOME" }}`}, nil, Data{}); err == nil {
 		t.Fatal("env function should be unavailable")

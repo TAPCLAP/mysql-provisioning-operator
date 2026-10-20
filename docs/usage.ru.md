@@ -195,6 +195,17 @@ tls:
 
 `defaultTarget` используется, когда у базы или пользователя не задан `spec.target`. По умолчанию это `Master`.
 
+У member можно задать `attributes` — набор строк. Оператор копирует их в шаблон секрета и в `status.members` и `status.master` у `MySQLDatabase` и `MySQLUser`. Ключ совпадает с `^[A-Za-z][A-Za-z0-9]{0,63}$`, поэтому в шаблоне его читают как `{{ .Item.Attributes.publicHost }}`. Значение — не длиннее 253 символов. У одного member не больше 16 атрибутов.
+
+```yaml
+members:
+  - name: db1-1
+    host: db1-1.internal
+    attributes:
+      publicHost: db.example.com
+      zone: a
+```
+
 Дождитесь готовности кластера:
 
 ```bash
@@ -327,7 +338,7 @@ spec:
 
 `name` — идентификатор MySQL не длиннее 64 символов, поле неизменяемое. `characterSet` и `collation` тоже неизменяемые и применяются только в `CREATE DATABASE`. По умолчанию это `utf8mb3` и `utf8mb3_general_ci`. Если схема уже есть и её charset или collation отличаются, оператор её не меняет и ставит `CharacterSetDrift`. `ALTER DATABASE` нет.
 
-`status.appliedOn` — имена members, где схема уже есть. При `target: Master` в этом списке мастер: оператор пишет туда, а на реплику схема приезжает репликацией. `status.members` содержит каждый member кластера с host и port. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда схема применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
+`status.appliedOn` — имена members, где схема уже есть. При `target: Master` в этом списке мастер: оператор пишет туда, а на реплику схема приезжает репликацией. `status.members` содержит каждый member кластера с host, port и attributes. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда схема применена. `status.master` — выбранный мастер: имя, host, port и attributes. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
 
 Удаление объекта, namespace или самого оператора схему не удаляет. Финалайзера и флага «всё же удалить» нет. Объект удаляется сразу, оператор пишет событие `DatabaseRetained`. Повторное создание объекта подхватывает существующую схему.
 
@@ -392,7 +403,7 @@ usernameSuffix:
 
 `maxUserConnections` и `maxQueriesPerHour` — необязательные ограничения учётки.
 
-`status.appliedOn` — имена members, куда учётка применена. При `target: Master` в этом списке мастер. `status.members` содержит каждый member кластера с host и port. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда учётка применена. `status.master` — выбранный мастер: имя, host и port. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
+`status.appliedOn` — имена members, куда учётка применена. При `target: Master` в этом списке мастер. `status.members` содержит каждый member кластера с host, port и attributes. `status.memberNames` — эти имена через запятую, и `kubectl get` печатает эту строку в колонке Members. При `target: All` оба списка содержат только members, куда учётка применена. `status.master` — выбранный мастер: имя, host, port и attributes. Колонка Master показывает его имя. Если мастер не выбран, колонка пустая.
 
 ### Шаблон Secret
 
@@ -420,6 +431,7 @@ usernameSuffix:
 | `.Host` | строка | Host member |
 | `.Port` | число | Порт member. `3306`, если в кластере порт не задан |
 | `.Index` | число | Позиция в `spec.members`, начиная с 1 |
+| `.Attributes` | набор строк | `MySQLCluster.spec.members[].attributes`. Пустой, если у member их нет. Отсутствующий ключ ломает рендер |
 
 `PASSWORD` и `PASSWORD_PREVIOUS` зарезервированы. Оператор записывает их после рендера, поэтому шаблон не может подменить пароль. `entries` повторяет ключ и значение для каждого member кластера. `forEach` поддерживает только `members`, и `.Item` — это этот member. Имя ключа должно совпадать с `[A-Za-z0-9_.-]+`. Пустое значение в Secret не записывается.
 

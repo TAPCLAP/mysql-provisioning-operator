@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1alpha1
 
+import "maps"
+
 // ApplyTarget chooses which members receive CREATE DATABASE and CREATE USER.
 type ApplyTarget string
 
@@ -99,6 +101,14 @@ type MySQLMember struct {
 	// master marks the explicit primary. It is valid only when spec.master.mode is Explicit.
 	// +optional
 	Master bool `json:"master,omitempty"`
+
+	// attributes are named values copied into secret templates and into
+	// status.members and status.master on MySQLDatabase and MySQLUser.
+	// A key matches ^[A-Za-z][A-Za-z0-9]{0,63}$. A value is at most 253 characters.
+	// +kubebuilder:validation:MaxProperties=16
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k.matches('^[A-Za-z][A-Za-z0-9]{0,63}$') && size(self[k]) <= 253)",message="attribute keys must match ^[A-Za-z][A-Za-z0-9]{0,63}$ and values must be at most 253 characters"
+	// +optional
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // EndpointStatus is a member address recorded on a database or user.
@@ -113,6 +123,10 @@ type EndpointStatus struct {
 	// port is the member port. 3306 when the cluster omits it.
 	// +optional
 	Port int32 `json:"port,omitempty"`
+
+	// attributes are copied from the cluster member.
+	// +optional
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // AddressPort returns the configured port or 3306.
@@ -121,6 +135,16 @@ func (m MySQLMember) AddressPort() int32 {
 		return 3306
 	}
 	return m.Port
+}
+
+// AttributesCopy returns a copy of attributes. It is nil when none are set.
+func (m MySQLMember) AttributesCopy() map[string]string {
+	if len(m.Attributes) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(m.Attributes))
+	maps.Copy(out, m.Attributes)
+	return out
 }
 
 // CredentialsSecretRef points at a Secret in the same namespace as the MySQLCluster.

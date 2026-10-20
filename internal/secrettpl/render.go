@@ -23,6 +23,8 @@ type Endpoint struct {
 	Port int32
 	// Index is the 1-based position in spec.members.
 	Index int
+	// Attributes are the member attributes from the cluster spec.
+	Attributes map[string]string
 }
 
 // Data is the only object a tenant template can read.

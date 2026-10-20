@@ -3,11 +3,20 @@ package validate
 import (
 	"fmt"
 	"regexp"
+	"unicode/utf8"
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
 )
 
-var serverNamePattern = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
+const (
+	maxAttributes           = 16
+	maxAttributeValueLength = 253
+)
+
+var (
+	serverNamePattern   = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
+	attributeKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,63}$`)
+)
 
 // Cluster checks structural rules that do not need other objects.
 func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
@@ -26,6 +35,9 @@ func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
 		names[member.Name] = struct{}{}
 		if member.Host == "" {
 			return fmt.Errorf("member %q host is required", member.Name)
+		}
+		if err := checkAttributes(member); err != nil {
+			return err
 		}
 		if member.Master {
 			masters++
@@ -58,6 +70,21 @@ func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
 		return fmt.Errorf("defaultTarget All is incompatible with privilegeReplication Replicated")
 	}
 	return checkClusterTLS(obj.Spec.TLS)
+}
+
+func checkAttributes(member mysqlv1alpha1.MySQLMember) error {
+	if len(member.Attributes) > maxAttributes {
+		return fmt.Errorf("member %q has more than %d attributes", member.Name, maxAttributes)
+	}
+	for key, value := range member.Attributes {
+		if !attributeKeyPattern.MatchString(key) {
+			return fmt.Errorf("member %q attribute key %q is invalid", member.Name, key)
+		}
+		if utf8.RuneCountInString(value) > maxAttributeValueLength {
+			return fmt.Errorf("member %q attribute %q exceeds %d characters", member.Name, key, maxAttributeValueLength)
+		}
+	}
+	return nil
 }
 
 func checkClusterTLS(tls *mysqlv1alpha1.ClusterTLS) error {

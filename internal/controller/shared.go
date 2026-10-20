@@ -284,9 +284,10 @@ func selectedMaster(target resolved) *mysqlv1alpha1.EndpointStatus {
 
 func endpointStatus(member mysqlv1alpha1.MySQLMember) mysqlv1alpha1.EndpointStatus {
 	return mysqlv1alpha1.EndpointStatus{
-		Name: member.Name,
-		Host: member.Host,
-		Port: member.AddressPort(),
+		Name:       member.Name,
+		Host:       member.Host,
+		Port:       member.AddressPort(),
+		Attributes: member.AttributesCopy(),
 	}
 }
 

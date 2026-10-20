@@ -6,13 +6,13 @@ import (
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
 	"github.com/tapclap/mysql-provisioning-operator/internal/mysql"
-	"github.com/tapclap/mysql-provisioning-operator/internal/secrettpl"
 )
 
 const (
-	member1 = "db1-1"
-	member2 = "db1-2"
-	member3 = "db1-3"
+	member1    = "db1-1"
+	member2    = "db1-2"
+	member3    = "db1-3"
+	publicHost = "db.example.com"
 )
 
 func TestRandomSuffix(t *testing.T) {
@@ -59,15 +59,50 @@ func TestReplicaEndpoint(t *testing.T) {
 		t.Fatalf("replica after master %#v", got)
 	}
 	target.Selection.Master = nil
-	if replicaEndpoint(target) != (secrettpl.Endpoint{}) {
+	if replicaEndpoint(target).Name != "" {
 		t.Fatal("replica was chosen without a master")
 	}
 	alone := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{Members: []mysqlv1alpha1.MySQLMember{
 		{Name: member1, Host: member1},
 	}}}
 	only := resolved{Cluster: alone, Selection: mysql.Selection{Master: &alone.Spec.Members[0]}}
-	if replicaEndpoint(only) != (secrettpl.Endpoint{}) {
+	if replicaEndpoint(only).Name != "" {
 		t.Fatal("the only member was used as a replica")
+	}
+}
+
+func TestAttributesReachTemplateAndStatus(t *testing.T) {
+	cluster := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{Members: []mysqlv1alpha1.MySQLMember{
+		{Name: member1, Host: member1, Attributes: map[string]string{"publicHost": publicHost}},
+		{Name: member2, Host: member2, Attributes: map[string]string{"zone": "a"}},
+	}}}
+	target := resolved{Cluster: cluster, Selection: mysql.Selection{Master: &cluster.Spec.Members[0]}, LogBin: true}
+	members := memberEndpoints(target)
+	if members[0].Attributes["publicHost"] != publicHost || members[1].Attributes["zone"] != "a" {
+		t.Fatalf("template members %#v", members)
+	}
+	members[0].Attributes["publicHost"] = "changed"
+	if cluster.Spec.Members[0].Attributes["publicHost"] != publicHost {
+		t.Fatal("template attributes share the spec map")
+	}
+	master := masterEndpoint(target)
+	if master.Index != 1 || master.Attributes["publicHost"] != publicHost {
+		t.Fatalf("template master %#v", master)
+	}
+	replica := replicaEndpoint(target)
+	if replica.Name != member2 || replica.Index != 2 || replica.Attributes["zone"] != "a" {
+		t.Fatalf("template replica %#v", replica)
+	}
+	statusMembers, statusMaster := recordPlacement(target, []string{member1})
+	if len(statusMembers) != 2 || statusMembers[0].Attributes["publicHost"] != publicHost || statusMembers[1].Attributes["zone"] != "a" {
+		t.Fatalf("status members %#v", statusMembers)
+	}
+	if statusMaster == nil || statusMaster.Attributes["publicHost"] != publicHost {
+		t.Fatalf("status master %#v", statusMaster)
+	}
+	statusMaster.Attributes["publicHost"] = "changed"
+	if cluster.Spec.Members[0].Attributes["publicHost"] != publicHost {
+		t.Fatal("status attributes share the spec map")
 	}
 }
 
