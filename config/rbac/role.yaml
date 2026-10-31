@@ -13,13 +13,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
   - secrets
   verbs:
   - create
@@ -27,6 +20,14 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - ""
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - mysql-provisioning.tapclap.com
   resources:
