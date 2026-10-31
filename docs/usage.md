@@ -80,7 +80,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
 ---
 apiVersion: mysql-provisioning.tapclap.com/v1alpha1
@@ -89,7 +91,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   authPlugin: caching_sha2_password
   requireTLS: true
@@ -116,11 +120,11 @@ cert-manager must be installed before the chart. The webhook `failurePolicy` is 
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.13
+  --version 0.0.14
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.13 \
+  --version 0.0.14 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -294,10 +298,10 @@ spec:
       privileges: ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "INDEX", "ALTER"]
 ```
 
-The checks on a database or user:
+The checks below apply when the database or user references a cluster in the operator namespace. `namespaceFrom: SameNamespace` does not consult `MySQLTenant`.
 
 - the object namespace is listed in `spec.namespaces`;
-- `spec.cluster` appears in `access`;
+- the cluster name (`clusterRef.name`, or the deprecated `spec.cluster`) appears in `access`;
 - the database name matches `databases.patterns`, and the username matches `users.patterns`;
 - every `grants[].database` matches those database patterns, so a grant cannot point at another tenant's schema;
 - privileges are a subset of the allow-list;
@@ -309,7 +313,7 @@ The checks on a database or user:
 
 `requireTLS: Required` rejects a user with `spec.requireTLS: false`. `Optional` allows both.
 
-Quotas count live objects in the tenant namespace. A nil quota is unlimited. If any matching policy leaves the quota unset, the result is unlimited. Otherwise the highest set limit is used.
+Quotas count live `MySQLDatabase` and `MySQLUser` objects in the tenant namespace that reference a cluster in the operator namespace. `SameNamespace` objects are not counted. A nil quota is unlimited. If any matching policy leaves the quota unset, the result is unlimited. Otherwise the highest set limit is used.
 
 These privileges and schemas are refused even when the allow-list is wide:
 
@@ -320,6 +324,74 @@ These privileges and schemas are refused even when the allow-list is wide:
 
 `status.orphanDatabases` lists schemas that match the tenant patterns and have no `MySQLDatabase` object. The list is informational. The operator does not delete those schemas.
 
+## Choose a cluster
+
+A database or user sets exactly one of `spec.cluster` and `spec.clusterRef`. `spec.cluster` is still accepted. It means the `MySQLCluster` of that name in the operator namespace, and the webhook warns on create and update. New objects use `clusterRef`.
+
+```yaml
+spec:
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
+```
+
+`namespaceFrom` defaults to `OperatorNamespace`. The operator reads that cluster only from the operator namespace and applies `MySQLTenant`, including name, host, privilege, and quota checks.
+
+`namespaceFrom: SameNamespace` is for a database that already lives in the application namespace, with its admin Secret beside it. Put `MySQLCluster` in that same namespace. The database and user name it with `SameNamespace`. No `MySQLTenant` is required. The operator does not fall back to the operator namespace, even when a cluster there has the same name. A cluster in the operator namespace is not opened by `SameNamespace`, and a cluster in the application namespace is not opened by `OperatorNamespace`.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLCluster
+metadata:
+  name: app-mysql
+  namespace: shop
+spec:
+  members:
+    - name: app-1
+      host: app-mysql.shop.svc
+  credentialsSecret:
+    name: app-mysql-admin
+  privilegeReplication: Replicated
+  defaultTarget: Master
+  master:
+    mode: Detected
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLDatabase
+metadata:
+  name: shop-main
+  namespace: shop
+spec:
+  clusterRef:
+    name: app-mysql
+    namespaceFrom: SameNamespace
+  name: shop_main
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLUser
+metadata:
+  name: shop-app
+  namespace: shop
+spec:
+  clusterRef:
+    name: app-mysql
+    namespaceFrom: SameNamespace
+  username: shop_app
+  authPlugin: caching_sha2_password
+  requireTLS: true
+  grants:
+    - database: shop_main
+      privileges: ["SELECT", "INSERT"]
+  secret:
+    name: shop-app
+    data:
+      USERNAME: "{{ .Username }}"
+      PASSWORD: "{{ .Password }}"
+      PRIMARY_HOST: "{{ .Master.Host }}"
+```
+
+`SameNamespace` still refuses the schemas `mysql`, `sys`, `information_schema`, and `performance_schema`, and the privileges `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION`, and `CREATE USER`. It does not apply tenant allow-lists or quotas. A `MySQLTenant` created outside the operator namespace grants nothing.
+
 ## Create a database
 
 ```yaml
@@ -329,7 +401,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
   characterSet: utf8mb3
   collation: utf8mb3_general_ci
@@ -353,7 +427,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   hosts: ["%"]
   authPlugin: caching_sha2_password
@@ -416,7 +492,7 @@ Templates use Go `text/template` and a reduced Sprig set. `env`, `expandenv`, an
 | `.PreviousPassword` | string | Retained password, or empty when there is none |
 | `.Hosts` | list of strings | `spec.hosts`. Empty spec means one entry, `%` |
 | `.Plugin` | string | `spec.authPlugin` |
-| `.Cluster` | string | `spec.cluster` |
+| `.Cluster` | string | MySQLCluster name from `spec.clusterRef.name`, or from the deprecated `spec.cluster` |
 | `.Databases` | list of strings | Database names from `spec.grants`, in spec order |
 | `.Master` | object | Selected master. Empty when no master is selected |
 | `.Replica` | object | One member that is not the selected master: the first such member in `spec.members`. Empty when no master is selected, or when the master is the only member |

@@ -22,12 +22,14 @@ import (
 
 // TenantQuotas limits how many objects a namespace may create.
 type TenantQuotas struct {
-	// maxDatabases is the maximum number of MySQLDatabase objects in each subject namespace.
+	// maxDatabases is the maximum number of MySQLDatabase objects in each subject namespace
+	// that reference a cluster in the operator namespace. SameNamespace objects are not counted.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MaxDatabases *int32 `json:"maxDatabases,omitempty"`
 
-	// maxUsers is the maximum number of MySQLUser objects in each subject namespace.
+	// maxUsers is the maximum number of MySQLUser objects in each subject namespace
+	// that reference a cluster in the operator namespace. SameNamespace objects are not counted.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MaxUsers *int32 `json:"maxUsers,omitempty"`

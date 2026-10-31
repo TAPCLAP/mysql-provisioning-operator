@@ -22,10 +22,19 @@ import (
 
 // MySQLDatabaseSpec defines a schema to create on an existing cluster.
 // The operator never drops the schema.
+// +kubebuilder:validation:XValidation:rule="(has(self.cluster) && !has(self.clusterRef)) || (!has(self.cluster) && has(self.clusterRef))",message="set exactly one of cluster and clusterRef"
 type MySQLDatabaseSpec struct {
 	// cluster is the MySQLCluster name in the operator namespace.
+	// Deprecated: use clusterRef. A value here means namespaceFrom OperatorNamespace.
+	// Exactly one of cluster and clusterRef must be set.
 	// +kubebuilder:validation:MinLength=1
-	Cluster string `json:"cluster"`
+	// +optional
+	Cluster string `json:"cluster,omitempty"`
+
+	// clusterRef names the MySQLCluster and the namespace to read it from.
+	// Exactly one of cluster and clusterRef must be set.
+	// +optional
+	ClusterRef *ClusterRef `json:"clusterRef,omitempty"`
 
 	// name is the MySQL schema name. It is immutable.
 	// +kubebuilder:validation:MinLength=1

@@ -57,12 +57,12 @@ type MySQLDatabaseCustomValidator struct {
 
 func (v *MySQLDatabaseCustomValidator) ValidateCreate(ctx context.Context, obj *mysqlprovisioningv1alpha1.MySQLDatabase) (admission.Warnings, error) {
 	mysqldatabaselog.Info("validation for MySQLDatabase upon creation", "name", obj.GetName())
-	return nil, validate.Database(ctx, v.Client, runtimeconfig.OperatorNamespace, obj, true)
+	return clusterWarnings(obj.Spec.Cluster, obj.Spec.ClusterRef), validate.Database(ctx, v.Client, runtimeconfig.OperatorNamespace, obj, true)
 }
 
 func (v *MySQLDatabaseCustomValidator) ValidateUpdate(ctx context.Context, _, newObj *mysqlprovisioningv1alpha1.MySQLDatabase) (admission.Warnings, error) {
 	mysqldatabaselog.Info("validation for MySQLDatabase upon update", "name", newObj.GetName())
-	return nil, validate.Database(ctx, v.Client, runtimeconfig.OperatorNamespace, newObj, false)
+	return clusterWarnings(newObj.Spec.Cluster, newObj.Spec.ClusterRef), validate.Database(ctx, v.Client, runtimeconfig.OperatorNamespace, newObj, false)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type MySQLDatabase.

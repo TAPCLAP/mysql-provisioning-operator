@@ -61,7 +61,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
 ---
 apiVersion: mysql-provisioning.tapclap.com/v1alpha1
@@ -70,7 +72,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   authPlugin: caching_sha2_password
   requireTLS: true
@@ -88,6 +92,8 @@ spec:
 
 Оператор выбирает member, который доступен на запись и у которого не настроена репликация. Второй member получает схему и учётку через binlog. Secret `payments-app` в namespace `payments` получает `USERNAME`, `PASSWORD`, `PRIMARY_HOST` и `REPLICA_HOST`. Удаление объекта базы схему в MySQL не удаляет. Удаление пользователя удаляет учётку.
 
+`namespaceFrom: OperatorNamespace` читает `MySQLCluster` из namespace оператора, а `MySQLTenant` решает, что этот namespace может создать. `namespaceFrom: SameNamespace` читает кластер и его admin Secret из того же namespace, что `MySQLUser` или `MySQLDatabase`. Тенант не нужен, и если имени нет в этом namespace, оператор не ищет его в другом. `spec.cluster` ещё принимается и означает `OperatorNamespace`, но новые объекты лучше описывать через `clusterRef`.
+
 Те же объекты с пояснением каждого поля — в [документации](docs/usage.ru.md).
 
 ## Документация
@@ -103,11 +109,11 @@ spec:
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.13
+  --version 0.0.14
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.13 \
+  --version 0.0.14 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```

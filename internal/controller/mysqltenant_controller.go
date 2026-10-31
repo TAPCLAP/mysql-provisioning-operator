@@ -138,10 +138,13 @@ func (r *MySQLTenantReconciler) managed(ctx context.Context, tenant *mysqlv1alph
 		if err := r.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 			return nil, err
 		}
-		for _, item := range list.Items {
-			if item.Spec.Cluster == clusterName {
-				managed[item.Spec.Name] = struct{}{}
+		for i := range list.Items {
+			item := &list.Items[i]
+			binding, err := validate.ResolveCluster(item.Namespace, r.OperatorNamespace, item.Spec.Cluster, item.Spec.ClusterRef)
+			if err != nil || binding.SameNamespace || binding.Name != clusterName {
+				continue
 			}
+			managed[item.Spec.Name] = struct{}{}
 		}
 	}
 	return managed, nil
@@ -151,11 +154,23 @@ func (r *MySQLTenantReconciler) recordCounts(ctx context.Context, tenant *mysqlv
 	for _, namespace := range tenant.Spec.Namespaces {
 		var databases mysqlv1alpha1.MySQLDatabaseList
 		if err := r.List(ctx, &databases, client.InNamespace(namespace)); err == nil {
-			metrics.TenantObjects.WithLabelValues(tenant.Name, namespace, "database").Set(float64(len(databases.Items)))
+			count := 0
+			for i := range databases.Items {
+				if validate.CountsTowardQuota(databases.Items[i].Spec.ClusterRef) {
+					count++
+				}
+			}
+			metrics.TenantObjects.WithLabelValues(tenant.Name, namespace, "database").Set(float64(count))
 		}
 		var users mysqlv1alpha1.MySQLUserList
 		if err := r.List(ctx, &users, client.InNamespace(namespace)); err == nil {
-			metrics.TenantObjects.WithLabelValues(tenant.Name, namespace, "user").Set(float64(len(users.Items)))
+			count := 0
+			for i := range users.Items {
+				if validate.CountsTowardQuota(users.Items[i].Spec.ClusterRef) {
+					count++
+				}
+			}
+			metrics.TenantObjects.WithLabelValues(tenant.Name, namespace, "user").Set(float64(count))
 		}
 	}
 }

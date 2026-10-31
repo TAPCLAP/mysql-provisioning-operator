@@ -70,9 +70,35 @@ spec:
                 - mysql_native_password
                 type: string
               cluster:
-                description: cluster is the MySQLCluster name in the operator namespace.
+                description: |-
+                  cluster is the MySQLCluster name in the operator namespace.
+                  Deprecated: use clusterRef. A value here means namespaceFrom OperatorNamespace.
+                  Exactly one of cluster and clusterRef must be set.
                 minLength: 1
                 type: string
+              clusterRef:
+                description: |-
+                  clusterRef names the MySQLCluster and the namespace to read it from.
+                  Exactly one of cluster and clusterRef must be set.
+                properties:
+                  name:
+                    description: name is the MySQLCluster name.
+                    minLength: 1
+                    type: string
+                  namespaceFrom:
+                    default: OperatorNamespace
+                    description: |-
+                      namespaceFrom is OperatorNamespace or SameNamespace.
+                      OperatorNamespace reads the cluster from the operator namespace and applies MySQLTenant.
+                      SameNamespace reads the cluster from the same namespace as this object and does not apply MySQLTenant.
+                      Defaults to OperatorNamespace. The other namespace is not searched.
+                    enum:
+                    - OperatorNamespace
+                    - SameNamespace
+                    type: string
+                required:
+                - name
+                type: object
               grants:
                 description: grants are reconciled to SHOW GRANTS.
                 items:
@@ -226,7 +252,6 @@ spec:
                 type: object
             required:
             - authPlugin
-            - cluster
             - secret
             - username
             type: object
@@ -234,6 +259,9 @@ spec:
             - message: username plus the random suffix must be at most 32 characters
               rule: '!has(self.usernameSuffix) || size(self.username) + (self.usernameSuffix.length
                 > 0 ? self.usernameSuffix.length : 8) <= 32'
+            - message: set exactly one of cluster and clusterRef
+              rule: (has(self.cluster) && !has(self.clusterRef)) || (!has(self.cluster)
+                && has(self.clusterRef))
           status:
             description: status defines the observed state of MySQLUser
             properties:

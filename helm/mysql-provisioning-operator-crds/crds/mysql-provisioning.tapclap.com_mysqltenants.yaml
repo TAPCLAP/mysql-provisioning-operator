@@ -149,14 +149,16 @@ spec:
                 description: quotas limit object counts. An omitted quota is unlimited.
                 properties:
                   maxDatabases:
-                    description: maxDatabases is the maximum number of MySQLDatabase
-                      objects in each subject namespace.
+                    description: |-
+                      maxDatabases is the maximum number of MySQLDatabase objects in each subject namespace
+                      that reference a cluster in the operator namespace. SameNamespace objects are not counted.
                     format: int32
                     minimum: 0
                     type: integer
                   maxUsers:
-                    description: maxUsers is the maximum number of MySQLUser objects
-                      in each subject namespace.
+                    description: |-
+                      maxUsers is the maximum number of MySQLUser objects in each subject namespace
+                      that reference a cluster in the operator namespace. SameNamespace objects are not counted.
                     format: int32
                     minimum: 0
                     type: integer

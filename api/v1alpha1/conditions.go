@@ -39,7 +39,8 @@ const (
 	ConditionRotationInProgress = "RotationInProgress"
 	// ConditionDegraded is True when at least one required member failed.
 	ConditionDegraded = "Degraded"
-	// ConditionAuthorized is True when the tenant policy allows the object.
+	// ConditionAuthorized is True when the object may use its cluster.
+	// OperatorNamespace references pass MySQLTenant. SameNamespace references do not use a tenant.
 	ConditionAuthorized = "Authorized"
 
 	// UserFinalizer drops MySQL accounts before the MySQLUser object is removed.

@@ -57,12 +57,12 @@ type MySQLUserCustomValidator struct {
 
 func (v *MySQLUserCustomValidator) ValidateCreate(ctx context.Context, obj *mysqlprovisioningv1alpha1.MySQLUser) (admission.Warnings, error) {
 	mysqluserlog.Info("validation for MySQLUser upon creation", "name", obj.GetName())
-	return nil, validate.User(ctx, v.Client, runtimeconfig.OperatorNamespace, obj, true)
+	return clusterWarnings(obj.Spec.Cluster, obj.Spec.ClusterRef), validate.User(ctx, v.Client, runtimeconfig.OperatorNamespace, obj, true)
 }
 
 func (v *MySQLUserCustomValidator) ValidateUpdate(ctx context.Context, _, newObj *mysqlprovisioningv1alpha1.MySQLUser) (admission.Warnings, error) {
 	mysqluserlog.Info("validation for MySQLUser upon update", "name", newObj.GetName())
-	return nil, validate.User(ctx, v.Client, runtimeconfig.OperatorNamespace, newObj, false)
+	return clusterWarnings(newObj.Spec.Cluster, newObj.Spec.ClusterRef), validate.User(ctx, v.Client, runtimeconfig.OperatorNamespace, newObj, false)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type MySQLUser.

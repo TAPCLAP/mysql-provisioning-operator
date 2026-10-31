@@ -122,7 +122,7 @@ func renderSecret(user *mysqlv1alpha1.MySQLUser, target resolved, plan password.
 		PreviousPassword: previous,
 		Hosts:            effectiveHosts(user),
 		Plugin:           string(user.Spec.AuthPlugin),
-		Cluster:          user.Spec.Cluster,
+		Cluster:          target.Cluster.Name,
 		Members:          memberEndpoints(target),
 		Master:           masterEndpoint(target),
 		Replica:          replicaEndpoint(target),

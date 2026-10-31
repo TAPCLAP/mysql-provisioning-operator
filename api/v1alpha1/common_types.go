@@ -28,6 +28,32 @@ const (
 	ApplyTargetAll ApplyTarget = "All"
 )
 
+// NamespaceFrom selects the namespace of a referenced MySQLCluster.
+type NamespaceFrom string
+
+const (
+	// NamespaceFromOperator reads the MySQLCluster from the operator namespace.
+	NamespaceFromOperator NamespaceFrom = "OperatorNamespace"
+	// NamespaceFromSame reads the MySQLCluster from the same namespace as the object.
+	NamespaceFromSame NamespaceFrom = "SameNamespace"
+)
+
+// ClusterRef names a MySQLCluster and where to find it.
+type ClusterRef struct {
+	// name is the MySQLCluster name.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// namespaceFrom is OperatorNamespace or SameNamespace.
+	// OperatorNamespace reads the cluster from the operator namespace and applies MySQLTenant.
+	// SameNamespace reads the cluster from the same namespace as this object and does not apply MySQLTenant.
+	// Defaults to OperatorNamespace. The other namespace is not searched.
+	// +kubebuilder:validation:Enum=OperatorNamespace;SameNamespace
+	// +kubebuilder:default=OperatorNamespace
+	// +optional
+	NamespaceFrom NamespaceFrom `json:"namespaceFrom,omitempty"`
+}
+
 // PrivilegeReplication describes whether account and schema DDL replicates.
 type PrivilegeReplication string
 

@@ -63,8 +63,8 @@ func (r *MySQLDatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		setCondition(&database.Status.Conditions, database.Generation, mysqlv1alpha1.ConditionReady, metav1.ConditionFalse, "Denied", err.Error())
 		return r.finish(ctx, original, &database)
 	}
-	setCondition(&database.Status.Conditions, database.Generation, mysqlv1alpha1.ConditionAuthorized, metav1.ConditionTrue, "Allowed", "tenant policy allows this database")
-	target, err := r.access().resolve(ctx, database.Spec.Cluster, database.Spec.Target)
+	setCondition(&database.Status.Conditions, database.Generation, mysqlv1alpha1.ConditionAuthorized, metav1.ConditionTrue, "Allowed", authorizedMessage(database.Namespace, r.OperatorNamespace, database.Spec.Cluster, database.Spec.ClusterRef, "database"))
+	target, err := r.access().resolve(ctx, database.Namespace, database.Spec.Cluster, database.Spec.ClusterRef, database.Spec.Target)
 	if err != nil {
 		return r.fail(ctx, original, &database, err)
 	}

@@ -100,10 +100,19 @@ type UsernameSuffix struct {
 
 // MySQLUserSpec defines an account, its grants, and the Secret that publishes the password.
 // +kubebuilder:validation:XValidation:rule="!has(self.usernameSuffix) || size(self.username) + (self.usernameSuffix.length > 0 ? self.usernameSuffix.length : 8) <= 32",message="username plus the random suffix must be at most 32 characters"
+// +kubebuilder:validation:XValidation:rule="(has(self.cluster) && !has(self.clusterRef)) || (!has(self.cluster) && has(self.clusterRef))",message="set exactly one of cluster and clusterRef"
 type MySQLUserSpec struct {
 	// cluster is the MySQLCluster name in the operator namespace.
+	// Deprecated: use clusterRef. A value here means namespaceFrom OperatorNamespace.
+	// Exactly one of cluster and clusterRef must be set.
 	// +kubebuilder:validation:MinLength=1
-	Cluster string `json:"cluster"`
+	// +optional
+	Cluster string `json:"cluster,omitempty"`
+
+	// clusterRef names the MySQLCluster and the namespace to read it from.
+	// Exactly one of cluster and clusterRef must be set.
+	// +optional
+	ClusterRef *ClusterRef `json:"clusterRef,omitempty"`
 
 	// username is the MySQL account name, or the prefix when usernameSuffix is set.
 	// It is immutable and at most 32 characters.

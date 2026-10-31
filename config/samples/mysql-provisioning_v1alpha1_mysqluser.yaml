@@ -7,7 +7,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   hosts: ["%"]
   authPlugin: caching_sha2_password

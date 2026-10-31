@@ -61,7 +61,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
 ---
 apiVersion: mysql-provisioning.tapclap.com/v1alpha1
@@ -70,7 +72,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   authPlugin: caching_sha2_password
   requireTLS: true
@@ -88,6 +92,8 @@ spec:
 
 The operator picks the member that is writable and has no replication source. The other member receives the schema and the account through the binlog. The Secret `payments-app` in the `payments` namespace receives `USERNAME`, `PASSWORD`, `PRIMARY_HOST`, and `REPLICA_HOST`. Deleting the database object leaves the schema in MySQL. Deleting the user drops the account.
 
+`namespaceFrom: OperatorNamespace` reads `MySQLCluster` from the operator namespace, and `MySQLTenant` decides what that namespace may create. `namespaceFrom: SameNamespace` reads the cluster and its admin Secret from the same namespace as the `MySQLUser` or `MySQLDatabase`. No tenant is required, and the operator does not look in the other namespace when the name is missing. `spec.cluster` is still accepted and means `OperatorNamespace`, but new objects should use `clusterRef`.
+
 The same objects, with every field explained, are in [Using the operator](docs/usage.md).
 
 ## Documentation
@@ -103,11 +109,11 @@ cert-manager must already be installed. The validating webhook rejects invalid r
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.13
+  --version 0.0.14
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.13 \
+  --version 0.0.14 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```

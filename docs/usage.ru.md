@@ -80,7 +80,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
 ---
 apiVersion: mysql-provisioning.tapclap.com/v1alpha1
@@ -89,7 +91,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   authPlugin: caching_sha2_password
   requireTLS: true
@@ -116,11 +120,11 @@ cert-manager должен стоять до чарта. У webhook `failurePolic
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.13
+  --version 0.0.14
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.13 \
+  --version 0.0.14 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -294,10 +298,10 @@ spec:
       privileges: ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "INDEX", "ALTER"]
 ```
 
-Проверки базы и пользователя:
+Проверки ниже действуют, когда база или пользователь ссылаются на кластер в namespace оператора. `namespaceFrom: SameNamespace` не смотрит на `MySQLTenant`.
 
 - namespace объекта есть в `spec.namespaces`;
-- `spec.cluster` есть в `access`;
+- имя кластера (`clusterRef.name` или устаревшее `spec.cluster`) есть в `access`;
 - имя базы совпадает с `databases.patterns`, имя пользователя — с `users.patterns`;
 - каждый `grants[].database` совпадает с этими паттернами баз, поэтому выдать права на чужую схему нельзя;
 - привилегии — подмножество allow-list;
@@ -309,7 +313,7 @@ spec:
 
 `requireTLS: Required` отклоняет пользователя с `spec.requireTLS: false`. `Optional` допускает оба варианта.
 
-Квоты считаются по живым объектам в namespace тенанта. Незаданная квота означает «без ограничения». Если хотя бы у одной подходящей политики квота не задана, ограничение не действует. Иначе берётся наибольший из заданных пределов.
+Квоты считаются по живым объектам `MySQLDatabase` и `MySQLUser` в namespace тенанта, которые ссылаются на кластер в namespace оператора. Объекты `SameNamespace` в квоту не входят. Незаданная квота означает «без ограничения». Если хотя бы у одной подходящей политики квота не задана, ограничение не действует. Иначе берётся наибольший из заданных пределов.
 
 Эти привилегии и схемы запрещены, даже если allow-list широкий:
 
@@ -320,6 +324,74 @@ spec:
 
 `status.orphanDatabases` перечисляет схемы, которые подходят под паттерны тенанта и для которых нет объекта `MySQLDatabase`. Это только список. Оператор эти схемы не удаляет.
 
+## Выбрать кластер
+
+У базы или пользователя задано ровно одно из полей `spec.cluster` и `spec.clusterRef`. `spec.cluster` ещё принимается. Оно означает `MySQLCluster` с этим именем в namespace оператора, и webhook предупреждает при создании и обновлении. Новые объекты используют `clusterRef`.
+
+```yaml
+spec:
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
+```
+
+`namespaceFrom` по умолчанию `OperatorNamespace`. Оператор читает этот кластер только из namespace оператора и применяет `MySQLTenant`: имена, hosts, привилегии и квоты.
+
+`namespaceFrom: SameNamespace` — для базы, которая уже стоит в namespace приложения, и admin Secret лежит рядом. `MySQLCluster` создаётся в том же namespace. База и пользователь указывают его через `SameNamespace`. `MySQLTenant` не нужен. Если такого имени в этом namespace нет, оператор не ищет его в namespace оператора, даже когда там есть кластер с тем же именем. `SameNamespace` не открывает кластер оператора, а `OperatorNamespace` не открывает кластер в namespace приложения.
+
+```yaml
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLCluster
+metadata:
+  name: app-mysql
+  namespace: shop
+spec:
+  members:
+    - name: app-1
+      host: app-mysql.shop.svc
+  credentialsSecret:
+    name: app-mysql-admin
+  privilegeReplication: Replicated
+  defaultTarget: Master
+  master:
+    mode: Detected
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLDatabase
+metadata:
+  name: shop-main
+  namespace: shop
+spec:
+  clusterRef:
+    name: app-mysql
+    namespaceFrom: SameNamespace
+  name: shop_main
+---
+apiVersion: mysql-provisioning.tapclap.com/v1alpha1
+kind: MySQLUser
+metadata:
+  name: shop-app
+  namespace: shop
+spec:
+  clusterRef:
+    name: app-mysql
+    namespaceFrom: SameNamespace
+  username: shop_app
+  authPlugin: caching_sha2_password
+  requireTLS: true
+  grants:
+    - database: shop_main
+      privileges: ["SELECT", "INSERT"]
+  secret:
+    name: shop-app
+    data:
+      USERNAME: "{{ .Username }}"
+      PASSWORD: "{{ .Password }}"
+      PRIMARY_HOST: "{{ .Master.Host }}"
+```
+
+`SameNamespace` по-прежнему запрещает схемы `mysql`, `sys`, `information_schema` и `performance_schema`, а также привилегии `SUPER`, `FILE`, `SHUTDOWN`, `RELOAD`, `BINLOG_ADMIN`, `SYSTEM_USER`, `CONNECTION_ADMIN`, `GRANT OPTION` и `CREATE USER`. Allow-list и квоты тенанта к нему не применяются. `MySQLTenant`, созданный вне namespace оператора, ничего не разрешает.
+
 ## Создать базу
 
 ```yaml
@@ -329,7 +401,9 @@ metadata:
   name: payments-main
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   name: payments_main
   characterSet: utf8mb3
   collation: utf8mb3_general_ci
@@ -353,7 +427,9 @@ metadata:
   name: payments-app
   namespace: payments
 spec:
-  cluster: db1
+  clusterRef:
+    name: db1
+    namespaceFrom: OperatorNamespace
   username: payments_app
   hosts: ["%"]
   authPlugin: caching_sha2_password
@@ -416,7 +492,7 @@ usernameSuffix:
 | `.PreviousPassword` | строка | Предыдущий пароль или пустая строка, если его нет |
 | `.Hosts` | список строк | `spec.hosts`. Пустой spec даёт один элемент, `%` |
 | `.Plugin` | строка | `spec.authPlugin` |
-| `.Cluster` | строка | `spec.cluster` |
+| `.Cluster` | строка | имя MySQLCluster из `spec.clusterRef.name` или из устаревшего `spec.cluster` |
 | `.Databases` | список строк | Имена баз из `spec.grants`, в порядке spec |
 | `.Master` | объект | Выбранный мастер. Пустой, если мастер не выбран |
 | `.Replica` | объект | Один member, который не выбран мастером: первый такой в `spec.members`. Пустой, если мастер не выбран или мастер — единственный member |

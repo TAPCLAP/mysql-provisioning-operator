@@ -72,12 +72,12 @@ func (r *MySQLUserReconciler) reconcile(ctx context.Context, user *mysqlv1alpha1
 		setCondition(&user.Status.Conditions, user.Generation, mysqlv1alpha1.ConditionReady, metav1.ConditionFalse, "Denied", err.Error())
 		return r.finish(ctx, original, user, requeueObject)
 	}
-	setCondition(&user.Status.Conditions, user.Generation, mysqlv1alpha1.ConditionAuthorized, metav1.ConditionTrue, "Allowed", "tenant policy allows this user")
+	setCondition(&user.Status.Conditions, user.Generation, mysqlv1alpha1.ConditionAuthorized, metav1.ConditionTrue, "Allowed", authorizedMessage(user.Namespace, r.OperatorNamespace, user.Spec.Cluster, user.Spec.ClusterRef, "user"))
 	if err := r.ensureAccountName(ctx, user); err != nil {
 		return r.fail(ctx, original, user, err)
 	}
 
-	target, err := r.access().resolve(ctx, user.Spec.Cluster, user.Spec.Target)
+	target, err := r.access().resolve(ctx, user.Namespace, user.Spec.Cluster, user.Spec.ClusterRef, user.Spec.Target)
 	if err != nil {
 		return r.fail(ctx, original, user, err)
 	}
@@ -289,14 +289,18 @@ func (r *MySQLUserReconciler) finalize(ctx context.Context, user *mysqlv1alpha1.
 }
 
 func (r *MySQLUserReconciler) dropAll(ctx context.Context, user *mysqlv1alpha1.MySQLUser) error {
-	if _, err := r.access().loadCluster(ctx, user.Spec.Cluster); err != nil {
+	binding, err := validate.ResolveCluster(user.Namespace, r.OperatorNamespace, user.Spec.Cluster, user.Spec.ClusterRef)
+	if err != nil {
+		return err
+	}
+	if _, err := r.access().loadCluster(ctx, binding.Namespace, binding.Name); err != nil {
 		if apierrors.IsNotFound(err) {
 			r.event(user, corev1.EventTypeWarning, "ClusterMissing", "cluster is gone; MySQL accounts were not dropped")
 			return nil
 		}
 		return err
 	}
-	target, err := r.access().resolve(ctx, user.Spec.Cluster, user.Spec.Target)
+	target, err := r.access().resolve(ctx, user.Namespace, user.Spec.Cluster, user.Spec.ClusterRef, user.Spec.Target)
 	if err != nil {
 		return err
 	}

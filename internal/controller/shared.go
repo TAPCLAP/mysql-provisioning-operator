@@ -53,9 +53,13 @@ type resolved struct {
 	Auth      mysql.Session
 }
 
-func (c clusterAccess) resolve(ctx context.Context, clusterName string, target mysqlv1alpha1.ApplyTarget) (resolved, error) {
+func (c clusterAccess) resolve(ctx context.Context, objectNamespace, clusterName string, ref *mysqlv1alpha1.ClusterRef, target mysqlv1alpha1.ApplyTarget) (resolved, error) {
 	var out resolved
-	cluster, err := c.loadCluster(ctx, clusterName)
+	binding, err := validate.ResolveCluster(objectNamespace, c.OperatorNamespace, clusterName, ref)
+	if err != nil {
+		return out, err
+	}
+	cluster, err := c.loadCluster(ctx, binding.Namespace, binding.Name)
 	if err != nil {
 		return out, err
 	}
@@ -109,11 +113,11 @@ func masterFromStatus(cluster *mysqlv1alpha1.MySQLCluster) (*mysqlv1alpha1.MySQL
 	return nil, fmt.Errorf("cluster master %q is not a member", name)
 }
 
-func (c clusterAccess) loadCluster(ctx context.Context, name string) (*mysqlv1alpha1.MySQLCluster, error) {
+func (c clusterAccess) loadCluster(ctx context.Context, namespace, name string) (*mysqlv1alpha1.MySQLCluster, error) {
 	var cluster mysqlv1alpha1.MySQLCluster
-	key := types.NamespacedName{Namespace: c.OperatorNamespace, Name: name}
+	key := types.NamespacedName{Namespace: namespace, Name: name}
 	if err := c.Client.Get(ctx, key, &cluster); err != nil {
-		return nil, fmt.Errorf("get cluster %s: %w", name, err)
+		return nil, fmt.Errorf("get cluster %s/%s: %w", namespace, name, err)
 	}
 	return &cluster, nil
 }
@@ -357,12 +361,55 @@ func errorText(errs []error) string {
 	return msg.String()
 }
 
+func authorizedMessage(objectNamespace, operatorNamespace, clusterName string, ref *mysqlv1alpha1.ClusterRef, kind string) string {
+	binding, err := validate.ResolveCluster(objectNamespace, operatorNamespace, clusterName, ref)
+	if err == nil && binding.SameNamespace {
+		return "same-namespace cluster does not use a tenant"
+	}
+	return "tenant policy allows this " + kind
+}
+
 func mapByCluster(ctx context.Context, c client.Client, operatorNamespace string, obj client.Object, database bool) []reconcile.Request {
 	cluster, ok := obj.(*mysqlv1alpha1.MySQLCluster)
-	if !ok || cluster.Namespace != operatorNamespace {
+	if !ok {
 		return nil
 	}
-	return requestsForCluster(ctx, c, cluster.Name, database)
+	if database {
+		var list mysqlv1alpha1.MySQLDatabaseList
+		if err := c.List(ctx, &list); err != nil {
+			return nil
+		}
+		var requests []reconcile.Request
+		for i := range list.Items {
+			item := &list.Items[i]
+			if !clusterMatches(item.Namespace, operatorNamespace, item.Spec.Cluster, item.Spec.ClusterRef, cluster) {
+				continue
+			}
+			requests = append(requests, requestFor(item))
+		}
+		return requests
+	}
+	var list mysqlv1alpha1.MySQLUserList
+	if err := c.List(ctx, &list); err != nil {
+		return nil
+	}
+	var requests []reconcile.Request
+	for i := range list.Items {
+		item := &list.Items[i]
+		if !clusterMatches(item.Namespace, operatorNamespace, item.Spec.Cluster, item.Spec.ClusterRef, cluster) {
+			continue
+		}
+		requests = append(requests, requestFor(item))
+	}
+	return requests
+}
+
+func clusterMatches(objectNamespace, operatorNamespace, clusterName string, ref *mysqlv1alpha1.ClusterRef, cluster *mysqlv1alpha1.MySQLCluster) bool {
+	binding, err := validate.ResolveCluster(objectNamespace, operatorNamespace, clusterName, ref)
+	if err != nil {
+		return false
+	}
+	return binding.Name == cluster.Name && binding.Namespace == cluster.Namespace
 }
 
 func mapByTenant(ctx context.Context, c client.Client, obj client.Object, database bool) []reconcile.Request {
@@ -373,33 +420,6 @@ func mapByTenant(ctx context.Context, c client.Client, obj client.Object, databa
 	var requests []reconcile.Request
 	for _, namespace := range tenant.Spec.Namespaces {
 		requests = append(requests, requestsInNamespace(ctx, c, namespace, database)...)
-	}
-	return requests
-}
-
-func requestsForCluster(ctx context.Context, c client.Client, clusterName string, database bool) []reconcile.Request {
-	if database {
-		var list mysqlv1alpha1.MySQLDatabaseList
-		if err := c.List(ctx, &list); err != nil {
-			return nil
-		}
-		var requests []reconcile.Request
-		for _, item := range list.Items {
-			if item.Spec.Cluster == clusterName {
-				requests = append(requests, requestFor(&item))
-			}
-		}
-		return requests
-	}
-	var list mysqlv1alpha1.MySQLUserList
-	if err := c.List(ctx, &list); err != nil {
-		return nil
-	}
-	var requests []reconcile.Request
-	for _, item := range list.Items {
-		if item.Spec.Cluster == clusterName {
-			requests = append(requests, requestFor(&item))
-		}
 	}
 	return requests
 }

@@ -37,7 +37,11 @@ func Database(ctx context.Context, c client.Client, operatorNamespace string, ob
 	if !charsetPattern.MatchString(charset) || !charsetPattern.MatchString(collation) {
 		return fmt.Errorf("invalid character set or collation")
 	}
-	cluster, err := loadCluster(ctx, c, operatorNamespace, obj.Spec.Cluster)
+	binding, err := ResolveCluster(obj.Namespace, operatorNamespace, obj.Spec.Cluster, obj.Spec.ClusterRef)
+	if err != nil {
+		return err
+	}
+	cluster, err := loadCluster(ctx, c, binding.Namespace, binding.Name)
 	if err != nil {
 		return err
 	}
@@ -48,14 +52,17 @@ func Database(ctx context.Context, c client.Client, operatorNamespace string, ob
 	if err := checkReplicationTarget(cluster, target); err != nil {
 		return err
 	}
+	if binding.SameNamespace {
+		return nil
+	}
 	tenants, err := loadTenants(ctx, c, operatorNamespace)
 	if err != nil {
 		return err
 	}
-	if err := authorizeDatabase(tenants, obj.Namespace, obj.Spec.Cluster, obj.Spec.Name, target); err != nil {
+	if err := authorizeDatabase(tenants, obj.Namespace, binding.Name, obj.Spec.Name, target); err != nil {
 		return err
 	}
-	return checkQuota(ctx, c, tenants, obj.Namespace, obj.Spec.Cluster, true, creating)
+	return checkQuota(ctx, c, tenants, obj.Namespace, binding.Name, true, creating)
 }
 
 // User checks tenant policy before an account is created or changed.
@@ -104,7 +111,11 @@ func User(ctx context.Context, c client.Client, operatorNamespace string, obj *m
 			}
 		}
 	}
-	cluster, err := loadCluster(ctx, c, operatorNamespace, obj.Spec.Cluster)
+	binding, err := ResolveCluster(obj.Namespace, operatorNamespace, obj.Spec.Cluster, obj.Spec.ClusterRef)
+	if err != nil {
+		return err
+	}
+	cluster, err := loadCluster(ctx, c, binding.Namespace, binding.Name)
 	if err != nil {
 		return err
 	}
@@ -115,14 +126,17 @@ func User(ctx context.Context, c client.Client, operatorNamespace string, obj *m
 	if err := checkReplicationTarget(cluster, target); err != nil {
 		return err
 	}
+	if binding.SameNamespace {
+		return nil
+	}
 	tenants, err := loadTenants(ctx, c, operatorNamespace)
 	if err != nil {
 		return err
 	}
-	if err := authorizeUser(tenants, obj, hosts, target); err != nil {
+	if err := authorizeUser(tenants, obj, binding.Name, hosts, target); err != nil {
 		return err
 	}
-	return checkQuota(ctx, c, tenants, obj.Namespace, obj.Spec.Cluster, false, creating)
+	return checkQuota(ctx, c, tenants, obj.Namespace, binding.Name, false, creating)
 }
 
 // EffectiveHosts defaults an empty host list to %.
@@ -155,10 +169,10 @@ func checkReplicationTarget(cluster *mysqlv1alpha1.MySQLCluster, target mysqlv1a
 	return nil
 }
 
-func loadCluster(ctx context.Context, c client.Client, operatorNamespace, name string) (*mysqlv1alpha1.MySQLCluster, error) {
+func loadCluster(ctx context.Context, c client.Client, namespace, name string) (*mysqlv1alpha1.MySQLCluster, error) {
 	var cluster mysqlv1alpha1.MySQLCluster
-	if err := c.Get(ctx, types.NamespacedName{Namespace: operatorNamespace, Name: name}, &cluster); err != nil {
-		return nil, fmt.Errorf("get cluster %s/%s: %w", operatorNamespace, name, err)
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &cluster); err != nil {
+		return nil, fmt.Errorf("get cluster %s/%s: %w", namespace, name, err)
 	}
 	return &cluster, nil
 }
@@ -202,14 +216,14 @@ func authorizeDatabase(tenants []mysqlv1alpha1.MySQLTenant, namespace, cluster, 
 	return nil
 }
 
-func authorizeUser(tenants []mysqlv1alpha1.MySQLTenant, obj *mysqlv1alpha1.MySQLUser, hosts []string, target mysqlv1alpha1.ApplyTarget) error {
+func authorizeUser(tenants []mysqlv1alpha1.MySQLTenant, obj *mysqlv1alpha1.MySQLUser, clusterName string, hosts []string, target mysqlv1alpha1.ApplyTarget) error {
 	var matched []mysqlv1alpha1.TenantAccess
 	for _, tenant := range tenants {
 		if !contains(tenant.Spec.Namespaces, obj.Namespace) {
 			continue
 		}
 		for _, access := range tenant.Spec.Access {
-			if access.Cluster != obj.Spec.Cluster {
+			if access.Cluster != clusterName {
 				continue
 			}
 			ok, err := Match(access.Users, obj.Spec.Username)
@@ -222,7 +236,7 @@ func authorizeUser(tenants []mysqlv1alpha1.MySQLTenant, obj *mysqlv1alpha1.MySQL
 		}
 	}
 	if len(matched) == 0 {
-		return fmt.Errorf("namespace %s cannot create user %s on cluster %s", obj.Namespace, obj.Spec.Username, obj.Spec.Cluster)
+		return fmt.Errorf("namespace %s cannot create user %s on cluster %s", obj.Namespace, obj.Spec.Username, clusterName)
 	}
 	var targets []mysqlv1alpha1.ApplyTarget
 	hostsAllowed := map[string]struct{}{}
@@ -336,13 +350,25 @@ func countObjects(ctx context.Context, c client.Client, namespace string, databa
 		if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 			return 0, err
 		}
-		return len(list.Items), nil
+		count := 0
+		for i := range list.Items {
+			if CountsTowardQuota(list.Items[i].Spec.ClusterRef) {
+				count++
+			}
+		}
+		return count, nil
 	}
 	var list mysqlv1alpha1.MySQLUserList
 	if err := c.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 		return 0, err
 	}
-	return len(list.Items), nil
+	count := 0
+	for i := range list.Items {
+		if CountsTowardQuota(list.Items[i].Spec.ClusterRef) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func tenantAllowsCluster(tenant mysqlv1alpha1.MySQLTenant, cluster string) bool {
