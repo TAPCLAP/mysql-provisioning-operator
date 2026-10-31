@@ -96,7 +96,7 @@ type MySQLDatabaseStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced,shortName=mdb
-// +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.cluster`
+// +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.clusterRef.name`
 // +kubebuilder:printcolumn:name="Schema",type=string,JSONPath=`.spec.name`
 // +kubebuilder:printcolumn:name="Master",type=string,JSONPath=`.status.master.name`
 // +kubebuilder:printcolumn:name="Members",type=string,JSONPath=`.status.memberNames`

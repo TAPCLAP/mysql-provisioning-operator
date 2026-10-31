@@ -17,7 +17,7 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.cluster
+    - jsonPath: .spec.clusterRef.name
       name: Cluster
       type: string
     - jsonPath: .spec.username
