@@ -1,16 +1,20 @@
 package controller
 
 import (
+	"context"
 	"strings"
+	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	mysqlv1alpha1 "github.com/tapclap/mysql-provisioning-operator/api/v1alpha1"
+	"github.com/tapclap/mysql-provisioning-operator/internal/mysql"
 	"github.com/tapclap/mysql-provisioning-operator/internal/mysqltest"
 )
 
@@ -87,13 +91,16 @@ var _ = Describe("MySQL controllers", func() {
 				}},
 			},
 		})).To(Succeed())
+		_, err := (&MySQLClusterReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), APIReader: k8sClient, Opener: script, OperatorNamespace: "default"}).Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: "db1", Namespace: "default"}})
+		Expect(err).NotTo(HaveOccurred())
+
 		database := &mysqlv1alpha1.MySQLDatabase{
 			ObjectMeta: metav1.ObjectMeta{Name: "payments-main", Namespace: "default"},
 			Spec:       mysqlv1alpha1.MySQLDatabaseSpec{Cluster: "db1", Name: "payments_main", Target: mysqlv1alpha1.ApplyTargetMaster},
 		}
 		Expect(k8sClient.Create(ctx, database)).To(Succeed())
 		dbReconciler := &MySQLDatabaseReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), APIReader: k8sClient, Opener: script, OperatorNamespace: "default"}
-		_, err := dbReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: database.Name, Namespace: database.Namespace}})
+		_, err = dbReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: database.Name, Namespace: database.Namespace}})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(script.Contains("CREATE DATABASE")).To(BeTrue())
 		Expect(script.Contains("DROP DATABASE")).To(BeFalse())
@@ -176,4 +183,176 @@ var _ = Describe("MySQL controllers", func() {
 		Expect(script.Contains("DROP USER")).To(BeTrue())
 		Expect(script.Contains("DROP DATABASE")).To(BeFalse())
 	})
+
+	It("applies a database and user only to the master published by the cluster", func() {
+		script := provisionScript()
+		opener := &memberOpener{base: script}
+		Expect(k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "db2-admin", Namespace: "default"},
+			Data:       map[string][]byte{"username": []byte("root"), "password": []byte("secret")},
+		})).To(Succeed())
+		cluster := &mysqlv1alpha1.MySQLCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "db2", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLClusterSpec{
+				Members: []mysqlv1alpha1.MySQLMember{
+					{Name: "db2-old", Host: "db2-old"},
+					{Name: "db2-new", Host: "db2-new"},
+				},
+				CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db2-admin"},
+				PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
+				DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
+				Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
+			},
+		}
+		Expect(k8sClient.Create(ctx, cluster)).To(Succeed())
+		cluster.Status.Master = &mysqlv1alpha1.MasterStatus{Name: "db2-new", Host: "db2-new", Port: 3306, Reason: "Detected"}
+		Expect(k8sClient.Status().Update(ctx, cluster)).To(Succeed())
+		Expect(k8sClient.Create(ctx, &mysqlv1alpha1.MySQLTenant{
+			ObjectMeta: metav1.ObjectMeta{Name: "billing", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLTenantSpec{
+				Namespaces: []string{"default"},
+				Access: []mysqlv1alpha1.TenantAccess{{
+					Cluster:    "db2",
+					Databases:  mysqlv1alpha1.PatternRule{Patterns: []string{"billing_*"}},
+					Users:      mysqlv1alpha1.PatternRule{Patterns: []string{"billing_*"}},
+					Hosts:      []string{"%"},
+					Targets:    []mysqlv1alpha1.ApplyTarget{mysqlv1alpha1.ApplyTargetMaster},
+					RequireTLS: mysqlv1alpha1.TLSOptional,
+					Privileges: []string{"SELECT"},
+				}},
+			},
+		})).To(Succeed())
+
+		database := &mysqlv1alpha1.MySQLDatabase{
+			ObjectMeta: metav1.ObjectMeta{Name: "billing-main", Namespace: "default"},
+			Spec:       mysqlv1alpha1.MySQLDatabaseSpec{Cluster: "db2", Name: "billing_main", Target: mysqlv1alpha1.ApplyTargetMaster},
+		}
+		Expect(k8sClient.Create(ctx, database)).To(Succeed())
+		dbReconciler := &MySQLDatabaseReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), APIReader: k8sClient, Opener: opener, OperatorNamespace: "default"}
+		_, err := dbReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: database.Name, Namespace: database.Namespace}})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: database.Name, Namespace: database.Namespace}, database)).To(Succeed())
+		Expect(database.Status.AppliedOn).To(Equal([]string{"db2-new"}))
+		Expect(database.Status.Master.Name).To(Equal("db2-new"))
+
+		user := &mysqlv1alpha1.MySQLUser{
+			ObjectMeta: metav1.ObjectMeta{Name: "billing-app", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLUserSpec{
+				Cluster: "db2", Username: "billing_app", Hosts: []string{"%"},
+				AuthPlugin: mysqlv1alpha1.AuthPluginCachingSHA2,
+				Target:     mysqlv1alpha1.ApplyTargetMaster,
+				Grants:     []mysqlv1alpha1.GrantSpec{{Database: "billing_main", Privileges: []string{"SELECT"}}},
+				Secret:     mysqlv1alpha1.SecretTemplate{Name: "billing-app", Data: map[string]string{"USER": "{{ .Username }}"}},
+			},
+		}
+		Expect(k8sClient.Create(ctx, user)).To(Succeed())
+		userReconciler := &MySQLUserReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), APIReader: k8sClient, Opener: opener, OperatorNamespace: "default"}
+		userKey := types.NamespacedName{Name: user.Name, Namespace: user.Namespace}
+		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: userKey})
+		Expect(err).NotTo(HaveOccurred())
+		_, err = userReconciler.Reconcile(ctx, reconcile.Request{NamespacedName: userKey})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, userKey, user)).To(Succeed())
+		Expect(user.Status.AppliedOn).To(Equal([]string{"db2-new"}))
+		Expect(user.Status.Master.Name).To(Equal("db2-new"))
+		Expect(opener.names()).To(Equal([]string{"db2-new", "db2-new", "db2-new"}))
+		Expect(opener.names()).NotTo(ContainElement("db2-old"))
+	})
+
+	It("waits without dialing when the cluster has not selected a master", func() {
+		opener := &memberOpener{base: provisionScript()}
+		Expect(k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "db3-admin", Namespace: "default"},
+			Data:       map[string][]byte{"username": []byte("root"), "password": []byte("secret")},
+		})).To(Succeed())
+		Expect(k8sClient.Create(ctx, &mysqlv1alpha1.MySQLCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "db3", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLClusterSpec{
+				Members:              []mysqlv1alpha1.MySQLMember{{Name: "db3-1", Host: "db3-1"}},
+				CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db3-admin"},
+				PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
+				DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
+				Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
+			},
+		})).To(Succeed())
+		Expect(k8sClient.Create(ctx, &mysqlv1alpha1.MySQLTenant{
+			ObjectMeta: metav1.ObjectMeta{Name: "shop", Namespace: "default"},
+			Spec: mysqlv1alpha1.MySQLTenantSpec{
+				Namespaces: []string{"default"},
+				Access: []mysqlv1alpha1.TenantAccess{{
+					Cluster:    "db3",
+					Databases:  mysqlv1alpha1.PatternRule{Patterns: []string{"shop_*"}},
+					Users:      mysqlv1alpha1.PatternRule{Patterns: []string{"shop_*"}},
+					Hosts:      []string{"%"},
+					Targets:    []mysqlv1alpha1.ApplyTarget{mysqlv1alpha1.ApplyTargetMaster},
+					RequireTLS: mysqlv1alpha1.TLSOptional,
+					Privileges: []string{"SELECT"},
+				}},
+			},
+		})).To(Succeed())
+		database := &mysqlv1alpha1.MySQLDatabase{
+			ObjectMeta: metav1.ObjectMeta{Name: "shop-main", Namespace: "default"},
+			Spec:       mysqlv1alpha1.MySQLDatabaseSpec{Cluster: "db3", Name: "shop_main", Target: mysqlv1alpha1.ApplyTargetMaster},
+		}
+		Expect(k8sClient.Create(ctx, database)).To(Succeed())
+		_, err := (&MySQLDatabaseReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), APIReader: k8sClient, Opener: opener, OperatorNamespace: "default"}).Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{Name: database.Name, Namespace: database.Namespace}})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: database.Name, Namespace: database.Namespace}, database)).To(Succeed())
+		Expect(meta.IsStatusConditionFalse(database.Status.Conditions, mysqlv1alpha1.ConditionReady)).To(BeTrue())
+		Expect(meta.FindStatusCondition(database.Status.Conditions, mysqlv1alpha1.ConditionReady).Message).To(ContainSubstring("no selected master"))
+		Expect(opener.names()).To(BeEmpty())
+	})
 })
+
+func provisionScript() *mysqltest.Script {
+	created := false
+	return &mysqltest.Script{
+		ExecFunc: func(query string) error {
+			if strings.Contains(query, "CREATE DATABASE") {
+				created = true
+			}
+			return nil
+		},
+		QueryFunc: func(query string) ([][]any, error) {
+			switch {
+			case strings.Contains(query, "@@global.read_only"):
+				return [][]any{{int64(0), int64(0), "11"}}, nil
+			case strings.Contains(query, "replication_connection_configuration"):
+				return [][]any{{int64(0)}}, nil
+			case strings.Contains(query, "VERSION()"):
+				return [][]any{{"8.0.36"}}, nil
+			case strings.Contains(query, "mysql.user"):
+				return nil, nil
+			case strings.Contains(query, "SHOW GRANTS"):
+				return [][]any{{"GRANT USAGE ON *.* TO `billing_app`@`%`"}}, nil
+			case strings.Contains(query, "SCHEMATA"):
+				if created {
+					return [][]any{{"utf8mb3", "utf8mb3_general_ci"}}, nil
+				}
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+	}
+}
+
+// memberOpener records which cluster members a reconcile dials.
+type memberOpener struct {
+	base   mysql.Opener
+	mu     sync.Mutex
+	opened []string
+}
+
+func (o *memberOpener) Open(ctx context.Context, member mysqlv1alpha1.MySQLMember, session mysql.Session) (mysql.DB, error) {
+	o.mu.Lock()
+	o.opened = append(o.opened, member.Name)
+	o.mu.Unlock()
+	return o.base.Open(ctx, member, session)
+}
+
+func (o *memberOpener) names() []string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]string(nil), o.opened...)
+}

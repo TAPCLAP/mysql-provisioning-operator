@@ -65,7 +65,14 @@ func (c clusterAccess) resolve(ctx context.Context, clusterName string, target m
 		return out, err
 	}
 	out.Auth = auth
-	out.Selection = mysql.SelectMaster(cluster, mysql.ProbeAll(ctx, c.opener(), cluster, auth))
+	master, err := masterFromStatus(cluster)
+	if err != nil {
+		return out, err
+	}
+	if master != nil {
+		out.Selection.Master = master
+		out.Selection.Reason = cluster.Status.Master.Reason
+	}
 	effective := validate.EffectiveTarget(target, cluster)
 	if err := replicationAllowed(cluster, effective); err != nil {
 		return out, err
@@ -76,12 +83,30 @@ func (c clusterAccess) resolve(ctx context.Context, clusterName string, target m
 		out.LogBin = false
 	default:
 		if out.Selection.Master == nil {
-			return out, masterError(out.Selection)
+			return out, fmt.Errorf("cluster has no selected master")
 		}
 		out.Members = []mysqlv1alpha1.MySQLMember{*out.Selection.Master}
 		out.LogBin = true
 	}
 	return out, nil
+}
+
+// masterFromStatus returns the member named by MySQLCluster status.
+// The cluster controller selects that master. A missing status is not an error:
+// Master-target callers wait until the next cluster reconcile publishes one.
+func masterFromStatus(cluster *mysqlv1alpha1.MySQLCluster) (*mysqlv1alpha1.MySQLMember, error) {
+	if cluster.Status.Master == nil || cluster.Status.Master.Name == "" {
+		return nil, nil
+	}
+	name := cluster.Status.Master.Name
+	for i := range cluster.Spec.Members {
+		if cluster.Spec.Members[i].Name != name {
+			continue
+		}
+		member := cluster.Spec.Members[i]
+		return &member, nil
+	}
+	return nil, fmt.Errorf("cluster master %q is not a member", name)
 }
 
 func (c clusterAccess) loadCluster(ctx context.Context, name string) (*mysqlv1alpha1.MySQLCluster, error) {
