@@ -19,6 +19,25 @@ const (
 	mysqlSchema           = "mysql"
 )
 
+func TestClusterCredentialKeys(t *testing.T) {
+	ok := baseCluster()
+	ok.Spec.CredentialsSecret.UsernameKey = "MYSQL_USER"
+	ok.Spec.CredentialsSecret.PasswordKey = "MYSQL_PASSWORD"
+	if err := Cluster(ok); err != nil {
+		t.Fatal(err)
+	}
+	same := baseCluster()
+	same.Spec.CredentialsSecret.UsernameKey = "password"
+	if err := Cluster(same); err == nil {
+		t.Fatal("usernameKey password was accepted with the default password key")
+	}
+	bad := baseCluster()
+	bad.Spec.CredentialsSecret.UsernameKey = "user name"
+	if err := Cluster(bad); err == nil {
+		t.Fatal("usernameKey with a space was accepted")
+	}
+}
+
 func TestClusterAttributes(t *testing.T) {
 	ok := baseCluster()
 	ok.Spec.Members[0].Attributes = map[string]string{"publicHost": "db.example.com"}
@@ -219,7 +238,7 @@ func TestParseRetentionDefaults(t *testing.T) {
 func baseCluster() *mysqlv1alpha1.MySQLCluster {
 	return &mysqlv1alpha1.MySQLCluster{ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: testOperatorNamespace}, Spec: mysqlv1alpha1.MySQLClusterSpec{
 		Members:              []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-		CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db1-admin"},
+		CredentialsSecret:    mysqlv1alpha1.AdminSecretRef{Name: "db1-admin"},
 		PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
 		DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
 		Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},

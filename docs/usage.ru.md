@@ -120,11 +120,11 @@ cert-manager должен стоять до чарта. У webhook `failurePolic
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.14
+  --version 0.0.15
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.14 \
+  --version 0.0.15 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -133,7 +133,7 @@ helm install mysql-provisioning-operator \
 
 ## Зарегистрировать кластер
 
-Админский Secret создаётся в namespace оператора. Ключи: `username` и `password`.
+Админский Secret создаётся в namespace оператора. Ключи по умолчанию — `username` и `password`. `credentialsSecret.usernameKey` и `credentialsSecret.passwordKey` задают другие ключи.
 
 ```yaml
 apiVersion: v1

@@ -15,7 +15,7 @@ var _ = Describe("admission validation", func() {
 	It("rejects an explicit cluster that does not mark a master", func() {
 		cluster := &mysqlv1alpha1.MySQLCluster{Spec: mysqlv1alpha1.MySQLClusterSpec{
 			Members:           []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-			CredentialsSecret: mysqlv1alpha1.CredentialsSecretRef{Name: "admin"},
+			CredentialsSecret: mysqlv1alpha1.AdminSecretRef{Name: "admin"},
 			Master:            mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeExplicit},
 		}}
 		_, err := (&MySQLClusterCustomValidator{}).ValidateCreate(ctx, cluster)
@@ -43,7 +43,7 @@ var _ = Describe("admission validation", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: "default"},
 			Spec: mysqlv1alpha1.MySQLClusterSpec{
 				Members:           []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-				CredentialsSecret: mysqlv1alpha1.CredentialsSecretRef{Name: "admin"},
+				CredentialsSecret: mysqlv1alpha1.AdminSecretRef{Name: "admin"},
 				Master:            mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
 			},
 		})).To(Succeed())
@@ -142,7 +142,7 @@ var _ = Describe("admission validation", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: "default"},
 			Spec: mysqlv1alpha1.MySQLClusterSpec{
 				Members:           []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-				CredentialsSecret: mysqlv1alpha1.CredentialsSecretRef{Name: "admin"},
+				CredentialsSecret: mysqlv1alpha1.AdminSecretRef{Name: "admin"},
 				Master:            mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
 			},
 		}
@@ -153,7 +153,7 @@ var _ = Describe("admission validation", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: "apps"},
 			Spec: mysqlv1alpha1.MySQLClusterSpec{
 				Members:           []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-				CredentialsSecret: mysqlv1alpha1.CredentialsSecretRef{Name: "admin"},
+				CredentialsSecret: mysqlv1alpha1.AdminSecretRef{Name: "admin"},
 				Master:            mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
 			},
 		})).To(Succeed())

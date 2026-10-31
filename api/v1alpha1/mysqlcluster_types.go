@@ -31,9 +31,10 @@ type MySQLClusterSpec struct {
 	// +kubebuilder:validation:MaxItems=32
 	Members []MySQLMember `json:"members"`
 
-	// credentialsSecret holds username and password keys for the admin account.
+	// credentialsSecret names the Secret with the admin username and password.
+	// usernameKey and passwordKey select the data keys. They default to username and password.
 	// +required
-	CredentialsSecret CredentialsSecretRef `json:"credentialsSecret"`
+	CredentialsSecret AdminSecretRef `json:"credentialsSecret"`
 
 	// tls configures the operator connection to MySQL. Omitted or Disabled is plaintext.
 	// +optional

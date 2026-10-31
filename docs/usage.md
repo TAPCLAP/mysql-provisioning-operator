@@ -120,11 +120,11 @@ cert-manager must be installed before the chart. The webhook `failurePolicy` is 
 ```bash
 helm install mysql-provisioning-operator-crds \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator-crds \
-  --version 0.0.14
+  --version 0.0.15
 
 helm install mysql-provisioning-operator \
   oci://ghcr.io/tapclap/charts/mysql-provisioning-operator \
-  --version 0.0.14 \
+  --version 0.0.15 \
   --namespace mysql-provisioning-system \
   --create-namespace
 ```
@@ -133,7 +133,7 @@ helm install mysql-provisioning-operator \
 
 ## Register a cluster
 
-Create the admin Secret in the operator namespace. Keys are `username` and `password`.
+Create the admin Secret in the operator namespace. The keys default to `username` and `password`. Set `credentialsSecret.usernameKey` and `credentialsSecret.passwordKey` to read different data keys.
 
 ```yaml
 apiVersion: v1

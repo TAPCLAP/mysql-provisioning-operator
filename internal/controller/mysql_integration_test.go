@@ -51,7 +51,7 @@ func TestOperatorMySQL(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: operatorNS},
 		Spec: mysqlv1alpha1.MySQLClusterSpec{
 			Members:              []mysqlv1alpha1.MySQLMember{server.Member},
-			CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db1-admin"},
+			CredentialsSecret:    mysqlv1alpha1.AdminSecretRef{Name: "db1-admin"},
 			PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
 			DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
 			Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},

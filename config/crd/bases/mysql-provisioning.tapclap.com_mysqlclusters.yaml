@@ -52,12 +52,29 @@ spec:
             description: spec defines the desired state of MySQLCluster
             properties:
               credentialsSecret:
-                description: credentialsSecret holds username and password keys for
-                  the admin account.
+                description: |-
+                  credentialsSecret names the Secret with the admin username and password.
+                  usernameKey and passwordKey select the data keys. They default to username and password.
                 properties:
                   name:
                     description: name is the Secret in the same namespace as the MySQLCluster.
                     minLength: 1
+                    type: string
+                  passwordKey:
+                    description: |-
+                      passwordKey is the data key for the admin password.
+                      Empty means password.
+                    maxLength: 253
+                    minLength: 1
+                    pattern: ^[-._a-zA-Z0-9]+$
+                    type: string
+                  usernameKey:
+                    description: |-
+                      usernameKey is the data key for the admin username.
+                      Empty means username.
+                    maxLength: 253
+                    minLength: 1
+                    pattern: ^[-._a-zA-Z0-9]+$
                     type: string
                 required:
                 - name

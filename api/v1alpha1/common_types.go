@@ -180,6 +180,53 @@ type CredentialsSecretRef struct {
 	Name string `json:"name"`
 }
 
+const (
+	// DefaultAdminUsernameKey is the Secret data key used when usernameKey is empty.
+	DefaultAdminUsernameKey = "username"
+	// DefaultAdminPasswordKey is the Secret data key used when passwordKey is empty.
+	DefaultAdminPasswordKey = "password"
+)
+
+// AdminSecretRef points at the admin username and password in a Secret
+// in the same namespace as the MySQLCluster.
+type AdminSecretRef struct {
+	// name is the Secret in the same namespace as the MySQLCluster.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// usernameKey is the data key for the admin username.
+	// Empty means username.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[-._a-zA-Z0-9]+$`
+	// +optional
+	UsernameKey string `json:"usernameKey,omitempty"`
+
+	// passwordKey is the data key for the admin password.
+	// Empty means password.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[-._a-zA-Z0-9]+$`
+	// +optional
+	PasswordKey string `json:"passwordKey,omitempty"`
+}
+
+// UsernameKeyOrDefault returns usernameKey, or username when it is empty.
+func (r AdminSecretRef) UsernameKeyOrDefault() string {
+	if r.UsernameKey == "" {
+		return DefaultAdminUsernameKey
+	}
+	return r.UsernameKey
+}
+
+// PasswordKeyOrDefault returns passwordKey, or password when it is empty.
+func (r AdminSecretRef) PasswordKeyOrDefault() string {
+	if r.PasswordKey == "" {
+		return DefaultAdminPasswordKey
+	}
+	return r.PasswordKey
+}
+
 // ObjectKeyRef selects one key in a namespaced object next to the MySQLCluster.
 type ObjectKeyRef struct {
 	// name is the object in the same namespace as the MySQLCluster.

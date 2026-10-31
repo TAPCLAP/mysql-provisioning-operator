@@ -124,7 +124,7 @@ func (c clusterAccess) loadCluster(ctx context.Context, namespace, name string) 
 
 func readSession(ctx context.Context, reader client.Reader, cluster *mysqlv1alpha1.MySQLCluster) (mysql.Session, error) {
 	var session mysql.Session
-	user, password, err := readAdminSecret(ctx, reader, cluster.Namespace, cluster.Spec.CredentialsSecret.Name)
+	user, password, err := readAdminSecret(ctx, reader, cluster.Namespace, cluster.Spec.CredentialsSecret)
 	if err != nil {
 		return session, err
 	}
@@ -193,15 +193,17 @@ func readSecretKey(ctx context.Context, reader client.Reader, namespace, name, k
 	return value, nil
 }
 
-func readAdminSecret(ctx context.Context, reader client.Reader, namespace, name string) (string, string, error) {
+func readAdminSecret(ctx context.Context, reader client.Reader, namespace string, ref mysqlv1alpha1.AdminSecretRef) (string, string, error) {
 	var secret corev1.Secret
-	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &secret); err != nil {
-		return "", "", fmt.Errorf("get admin secret %s/%s: %w", namespace, name, err)
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: ref.Name}, &secret); err != nil {
+		return "", "", fmt.Errorf("get admin secret %s/%s: %w", namespace, ref.Name, err)
 	}
-	user := string(secret.Data["username"])
-	password := string(secret.Data["password"])
+	userKey := ref.UsernameKeyOrDefault()
+	passwordKey := ref.PasswordKeyOrDefault()
+	user := string(secret.Data[userKey])
+	password := string(secret.Data[passwordKey])
 	if user == "" || password == "" {
-		return "", "", fmt.Errorf("admin secret %s/%s must contain username and password", namespace, name)
+		return "", "", fmt.Errorf("admin secret %s/%s must contain %s and %s", namespace, ref.Name, userKey, passwordKey)
 	}
 	return user, password, nil
 }

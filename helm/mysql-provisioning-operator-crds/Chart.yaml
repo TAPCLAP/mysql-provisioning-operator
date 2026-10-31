@@ -2,8 +2,8 @@ apiVersion: v2
 name: mysql-provisioning-operator-crds
 description: CRDs for mysql-provisioning-operator. Install this chart when CRDs are managed separately from the operator.
 type: application
-version: 0.0.14
-appVersion: "v0.0.14"
+version: 0.0.15
+appVersion: "v0.0.15"
 kubeVersion: ">=1.30.0-0"
 keywords:
   - mysql

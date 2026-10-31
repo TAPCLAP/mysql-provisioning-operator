@@ -14,14 +14,15 @@ const (
 )
 
 var (
-	serverNamePattern   = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
-	attributeKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,63}$`)
+	serverNamePattern    = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
+	attributeKeyPattern  = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,63}$`)
+	secretDataKeyPattern = regexp.MustCompile(`^[-._a-zA-Z0-9]+$`)
 )
 
 // Cluster checks structural rules that do not need other objects.
 func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
-	if obj.Spec.CredentialsSecret.Name == "" {
-		return fmt.Errorf("credentialsSecret.name is required")
+	if err := checkAdminSecret(obj.Spec.CredentialsSecret); err != nil {
+		return err
 	}
 	if len(obj.Spec.Members) == 0 {
 		return fmt.Errorf("at least one member is required")
@@ -70,6 +71,32 @@ func Cluster(obj *mysqlv1alpha1.MySQLCluster) error {
 		return fmt.Errorf("defaultTarget All is incompatible with privilegeReplication Replicated")
 	}
 	return checkClusterTLS(obj.Spec.TLS)
+}
+
+func checkAdminSecret(ref mysqlv1alpha1.AdminSecretRef) error {
+	if ref.Name == "" {
+		return fmt.Errorf("credentialsSecret.name is required")
+	}
+	if err := checkSecretDataKey("credentialsSecret.usernameKey", ref.UsernameKey); err != nil {
+		return err
+	}
+	if err := checkSecretDataKey("credentialsSecret.passwordKey", ref.PasswordKey); err != nil {
+		return err
+	}
+	if ref.UsernameKeyOrDefault() == ref.PasswordKeyOrDefault() {
+		return fmt.Errorf("credentialsSecret.usernameKey and credentialsSecret.passwordKey must name different keys")
+	}
+	return nil
+}
+
+func checkSecretDataKey(field, key string) error {
+	if key == "" {
+		return nil
+	}
+	if len(key) > 253 || !secretDataKeyPattern.MatchString(key) {
+		return fmt.Errorf("%s is invalid", field)
+	}
+	return nil
 }
 
 func checkAttributes(member mysqlv1alpha1.MySQLMember) error {

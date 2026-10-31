@@ -70,7 +70,7 @@ var _ = Describe("MySQL controllers", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "db1", Namespace: "default"},
 			Spec: mysqlv1alpha1.MySQLClusterSpec{
 				Members:              []mysqlv1alpha1.MySQLMember{{Name: "db1-1", Host: "db1-1"}},
-				CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db1-admin"},
+				CredentialsSecret:    mysqlv1alpha1.AdminSecretRef{Name: "db1-admin"},
 				PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
 				DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
 				Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
@@ -198,7 +198,7 @@ var _ = Describe("MySQL controllers", func() {
 					{Name: "db2-old", Host: "db2-old"},
 					{Name: "db2-new", Host: "db2-new"},
 				},
-				CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db2-admin"},
+				CredentialsSecret:    mysqlv1alpha1.AdminSecretRef{Name: "db2-admin"},
 				PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
 				DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
 				Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
@@ -269,7 +269,7 @@ var _ = Describe("MySQL controllers", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "db3", Namespace: "default"},
 			Spec: mysqlv1alpha1.MySQLClusterSpec{
 				Members:              []mysqlv1alpha1.MySQLMember{{Name: "db3-1", Host: "db3-1"}},
-				CredentialsSecret:    mysqlv1alpha1.CredentialsSecretRef{Name: "db3-admin"},
+				CredentialsSecret:    mysqlv1alpha1.AdminSecretRef{Name: "db3-admin"},
 				PrivilegeReplication: mysqlv1alpha1.PrivilegeReplicationReplicated,
 				DefaultTarget:        mysqlv1alpha1.ApplyTargetMaster,
 				Master:               mysqlv1alpha1.MasterSelection{Mode: mysqlv1alpha1.MasterModeDetected},
